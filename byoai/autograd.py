@@ -86,7 +86,9 @@ class Tensor:
         if not self.requires_grad:
             return
         g = _unbroadcast(np.asarray(g, dtype=self.data.dtype), self.data.shape)
-        self.grad = g.copy() if self.grad is None else self.grad + g
+        # No copy: gradients are never modified in place (an optimizer or a clip makes new arrays),
+        # so sharing one array between the two inputs of `a + b` is safe — and saves a copy per op.
+        self.grad = g if self.grad is None else self.grad + g
 
     def backward(self, grad: np.ndarray | None = None) -> None:
         """Gradients of this tensor (a scalar loss, usually) with respect to everything it came from."""
@@ -139,40 +141,59 @@ class Tensor:
 
     # ---- elementwise arithmetic ----------------------------------------------------------------------
     def __add__(self, other) -> Tensor:
-        o = _t(other)
+        o = _t(other, self)
         return Tensor._make(self.data + o.data, (self, o), "+", lambda g: (self._accumulate(g), o._accumulate(g)))
 
     def __mul__(self, other) -> Tensor:
-        o = _t(other)
+        o = _t(other, self)
         return Tensor._make(self.data * o.data, (self, o), "*", lambda g: (self._accumulate(g * o.data), o._accumulate(g * self.data)))
 
     def __pow__(self, k: float) -> Tensor:
-        return Tensor._make(self.data**k, (self,), f"**{k}", lambda g: self._accumulate(g * k * self.data ** (k - 1)))
+        x = self.data
+        # Float powers are slow; the common ones have fast exact forms.
+        if k == 2:
+            return Tensor._make(x * x, (self,), "**2", lambda g: self._accumulate(g * 2 * x))
+        if k == 0.5:
+            out = np.sqrt(x)
+            return Tensor._make(out, (self,), "sqrt", lambda g: self._accumulate(g * 0.5 / out))
+        return Tensor._make(x**k, (self,), f"**{k}", lambda g: self._accumulate(g * k * x ** (k - 1)))
 
     def __neg__(self) -> Tensor:
         return self * -1.0
 
     def __sub__(self, other) -> Tensor:
-        return self + (-_t(other))
+        return self + (-_t(other, self))
 
     def __truediv__(self, other) -> Tensor:
-        o = _t(other)
+        o = _t(other, self)
         return Tensor._make(self.data / o.data, (self, o), "/", lambda g: (self._accumulate(g / o.data), o._accumulate(-g * self.data / o.data**2)))
 
     __radd__ = __add__
     __rmul__ = __mul__
 
     def __rsub__(self, other) -> Tensor:
-        return _t(other) - self
+        return _t(other, self) - self
 
     def __rtruediv__(self, other) -> Tensor:
-        return _t(other) / self
+        return _t(other, self) / self
 
     # ---- matrix product ------------------------------------------------------------------------------
     def __matmul__(self, other) -> Tensor:
         """`A @ B`, with numpy's batching: (..., n, k) @ (..., k, m) -> (..., n, m)."""
-        o = _t(other)
+        o = _t(other, self)
         a, b = self.data, o.data
+        if a.ndim > 2 and b.ndim == 2:
+            # (batch, time, k) @ (k, m): one 2-D product (a single BLAS call) instead of numpy's batched
+            # loop — and the gradient of `b` comes out summed over the batch directly, instead of as a
+            # (batch, k, m) array that is summed afterwards.
+            a2 = a.reshape(-1, a.shape[-1])
+
+            def backward2d(g: np.ndarray) -> None:
+                g2 = g.reshape(-1, g.shape[-1])
+                self._accumulate((g2 @ b.T).reshape(a.shape))
+                o._accumulate(a2.T @ g2)
+
+            return Tensor._make((a2 @ b).reshape(*a.shape[:-1], b.shape[-1]), (self, o), "@", backward2d)
 
         def backward(g: np.ndarray) -> None:
             # d(A@B)/dA = g @ Bᵀ, d(A@B)/dB = Aᵀ @ g — on the last two axes; batch axes broadcast.
@@ -255,13 +276,13 @@ class Tensor:
         """GELU, the tanh approximation GPT-2 uses: 0.5·x·(1 + tanh(√(2/π)·(x + 0.044715·x³)))."""
         x = self.data
         c = math.sqrt(2 / math.pi)
-        inner = c * (x + 0.044715 * x**3)
-        th = np.tanh(inner)
+        x2 = x * x  # (x*x, not x**2: float powers are slow)
+        th = np.tanh(c * x * (1 + 0.044715 * x2))
         out = 0.5 * x * (1 + th)
 
         def backward(g: np.ndarray) -> None:
-            d_inner = c * (1 + 3 * 0.044715 * x**2)
-            self._accumulate(g * (0.5 * (1 + th) + 0.5 * x * (1 - th**2) * d_inner))
+            d_inner = c * (1 + 3 * 0.044715 * x2)
+            self._accumulate(g * (0.5 * (1 + th) + 0.5 * x * (1 - th * th) * d_inner))
 
         return Tensor._make(out, (self,), "gelu", backward)
 
@@ -320,8 +341,16 @@ class Tensor:
         return centered / (var + eps) ** 0.5 * weight + bias
 
 
-def _t(x) -> Tensor:
-    return x if isinstance(x, Tensor) else Tensor(x)
+def _t(x, like: Tensor | None = None) -> Tensor:
+    """Wrap a constant. A Python number or an integer array takes the dtype of the tensor it meets: wrapped
+    as a float64 array, 1 / math.sqrt(D) would turn every float32 operation it touches into float64
+    (NumPy promotes for a 0-d array, not for a bare Python number)."""
+    if isinstance(x, Tensor):
+        return x
+    arr = np.asarray(x)
+    if like is not None and (arr.dtype.kind != "f" or arr.ndim == 0):
+        arr = arr.astype(like.data.dtype)
+    return Tensor(arr)
 
 
 def concatenate(tensors: Sequence[Tensor], axis: int = 0) -> Tensor:
@@ -370,9 +399,12 @@ class Adam:
             p.grad = None
 
 
-def gradcheck(f: Callable[..., Tensor], *inputs: Tensor, eps: float = 1e-6, tol: float = 1e-5) -> float:
+def gradcheck(f: Callable[..., Tensor], *inputs: Tensor, eps: float = 1e-6, tol: float = 1e-5, floor: float = 1e-5) -> float:
     """Compare autograd's gradients with finite differences, (f(x+ε) − f(x−ε)) / 2ε, for every input
-    element. Returns the largest relative error; raises if it is above `tol`."""
+    element. Returns the largest relative error; raises if it is above `tol`.
+
+    Gradients smaller than `floor` are compared in absolute terms: finite differences carry rounding
+    noise of about 1e-16·|f|/ε, which is a large *relative* error on a gradient of 1e-7."""
     for x in inputs:
         x.grad = None
     f(*inputs).backward()
@@ -390,7 +422,7 @@ def gradcheck(f: Callable[..., Tensor], *inputs: Tensor, eps: float = 1e-6, tol:
             down = f(*inputs).item()
             x.data[i] = old
             numeric[i] = (up - down) / (2 * eps)
-        err = np.abs(analytic - numeric) / np.maximum(1e-8, np.abs(analytic) + np.abs(numeric))
+        err = np.abs(analytic - numeric) / np.maximum(floor, np.abs(analytic) + np.abs(numeric))
         worst = max(worst, float(err.max()) if err.size else 0.0)
     if worst > tol:
         raise AssertionError(f"gradient check failed: relative error {worst:.2e} > {tol:.0e}")

@@ -22,8 +22,8 @@
 |---|---|---|---|
 | 1 | [分词器](chapters/01-tokenizer/README.md) | 字节级 BPE：训练、编码、特殊 token | ✅ |
 | 2 | [自动微分](chapters/02-autograd/README.md) | 数组上的反向模式自动求导、Adam | ✅ |
-| 3 | GPT | 一个在笔记本上训练的 decoder-only Transformer | 计划中 |
-| 4 | 推理 | temperature、top-k / top-p 采样、KV 缓存 | 计划中 |
+| 3 | [GPT](chapters/03-gpt/README.md) | 一个在笔记本上两分钟训练完的 decoder-only Transformer | ✅ |
+| 4 | [推理](chapters/04-inference/README.md) | KV 缓存（快 10 倍）、temperature、top-k / top-p、流式输出 | ✅ |
 | 5 | 向量数据库 | 先是精确搜索，再是 HNSW 索引，并测量召回率 | 计划中 |
 | 6 | RAG | 切块、BM25、混合检索、评测 | 计划中 |
 | 7 | Agent | 一个调用工具的循环，模型可以替换 | 计划中 |

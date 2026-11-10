@@ -26,8 +26,8 @@ agent that calls tools over a Model Context Protocol connection you also wrote.
 |---|---|---|---|
 | 1 | [Tokenizer](chapters/01-tokenizer/README.md) | byte-level BPE: training, encoding, special tokens | ✅ |
 | 2 | [Autograd](chapters/02-autograd/README.md) | reverse-mode automatic differentiation on arrays, Adam | ✅ |
-| 3 | GPT | a decoder-only transformer, trained on a laptop | planned |
-| 4 | Inference | temperature, top-k / top-p sampling, a KV cache | planned |
+| 3 | [GPT](chapters/03-gpt/README.md) | a decoder-only transformer, trained on a laptop in two minutes | ✅ |
+| 4 | [Inference](chapters/04-inference/README.md) | a KV cache (10× faster), temperature, top-k / top-p, streaming | ✅ |
 | 5 | Vector database | exact search, then an HNSW index, with recall measured | planned |
 | 6 | RAG | chunking, BM25, hybrid retrieval, evaluation | planned |
 | 7 | Agent | a tool-calling loop, with a model you can swap | planned |
