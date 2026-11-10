@@ -98,5 +98,5 @@ finish, quantize weights to 8 or 4 bits, and use speculative decoding: a small m
 tokens and the large one checks them in a single pass. The cache and the sampling rules are the same as
 here.
 
-**Next:** Chapter 5 — a vector database: exact nearest-neighbour search, then an HNSW index that finds
+**Next:** [Chapter 5](../05-vectordb/README.md) — a vector database: exact nearest-neighbour search, then an HNSW index that finds
 almost the same neighbours far faster.

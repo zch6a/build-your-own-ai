@@ -86,6 +86,15 @@ class Engine:
     def forward(self, ids: list[int], cache: Cache) -> np.ndarray:
         """Run `ids` (new tokens) through the model after whatever `cache` holds; return their logits
         (len(ids), vocab) and extend the cache. With an empty cache this is the prefill."""
+        return self.hidden(ids, cache) @ self.p["wte"].T
+
+    def embed(self, ids: list[int]) -> np.ndarray:
+        """One vector for a whole text: the final hidden states, averaged over its positions (chapter 5
+        uses these to search). Texts longer than the context are embedded from their last block."""
+        return self.hidden(ids[-self.cfg.block_size :], Cache()).mean(axis=0)
+
+    def hidden(self, ids: list[int], cache: Cache) -> np.ndarray:
+        """The last layer's output for `ids` (after the final layer norm): (len(ids), n_embd)."""
         cfg, p = self.cfg, self.p
         start = cache.length
         T = len(ids)
@@ -118,7 +127,7 @@ class Engine:
             a = h @ p[f"h{i}.mlp.w"] + p[f"h{i}.mlp.b"]
             a = 0.5 * a * (1 + np.tanh(math.sqrt(2 / math.pi) * a * (1 + 0.044715 * a * a)))
             x = x + a @ p[f"h{i}.mlp.proj.w"] + p[f"h{i}.mlp.proj.b"]
-        return self._ln(x, "lnf") @ p["wte"].T
+        return self._ln(x, "lnf")
 
     def stream(
         self,

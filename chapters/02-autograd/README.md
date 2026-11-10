@@ -119,5 +119,5 @@ results as soon as the backward pass no longer needs them, and it can recompute 
 (gradient checkpointing). JAX takes the other road: it transforms the Python function itself into its
 derivative. The mathematics is the same.
 
-**Next:** Chapter 3 — GPT: a transformer built from these operations, trained on the stories from
+**Next:** [Chapter 3 — GPT](../03-gpt/README.md): a transformer built from these operations, trained on the stories from
 chapter 1.

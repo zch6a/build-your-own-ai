@@ -98,16 +98,38 @@ Untrained, the model writes byte soup. After 500 steps it writes grammatical sto
 the demo checks every sentence against the training text — on held-out loss 0.62.
 
 What it does not do yet is stay consistent: the dog of the first sentence becomes a bird in the third.
-That is measurable. Over 60 generated stories, the second sentence names the animal of the first in
-22% of them after 500 steps and 9% after 1,000 — a random pick among the 10 animals would give 10%.
 The model has learned *where* an animal goes, not *which* one.
 
-Keeping it would mean attending back to the first mention and copying it — a two-step circuit (one
-head finds "the token after the earlier `with a`", another copies it) that small transformers are known
-to form suddenly, after a plateau, sometimes much later in training. The plateau is visible here: the
-loss flattens at about 0.61 from step 150 on. What copying would be worth is computable: the animal
-appears about three times per ~50-token story, so knowing it saves about 3 × ln 10 / 50 ≈ 0.14 nats per
-token — the loss would drop to about 0.47. That is a clear target for the exercises below.
+## Train longer, and watch it learn to copy
+
+Keeping the animal means attending back to its first mention and copying it — a two-step circuit (one
+head finds "the token after the earlier `with a`", another copies it). What it is worth can be worked
+out beforehand: the animal appears about three times in a ~50-token story, so knowing it saves about
+3 × ln 10 / 50 ≈ 0.14 nats per token. The loss after 500 steps sits on a plateau at about 0.61.
+
+[`longer.py`](longer.py) trains for longer and measures, every 250 steps, how often the second sentence
+of a generated story names the animal of the first (a random pick among the 10 animals: 10%). Two
+runs, with different random batches:
+
+```text
+             first run                       second run
+step   500: loss 0.620   animal kept  22%    loss 0.599   animal kept  19%
+step   750:                                  loss 0.549   animal kept  70%   ← the jump
+step  1000: loss 0.609   animal kept   9%    loss 0.548   animal kept  67%
+step  1500: loss 0.556   animal kept  53%    loss 0.524   animal kept 100%   ← the jump (first run)
+step  2000: loss 0.550   animal kept  65%    loss 0.523   animal kept 100%
+```
+
+For a while nothing seems to happen — the loss barely moves and the animal is a coin toss. Then,
+within a few hundred steps, the model starts copying, and the loss drops by 0.05–0.08 towards the
+0.47 the arithmetic predicted. *When* it happens is not fixed: the first run sat on the plateau for
+about a thousand steps, the second jumped at 750 and went on to keep the animal every time. That it
+happens suddenly is the same in both. This jump is what researchers found in real language models when
+they looked for "induction heads": the circuit forms in a short phase change, and in-context learning
+appears with it. It is one reason training curves are watched for a long time before anyone gives up.
+
+(The shared model of the later chapters trains for 500 steps, so every demo starts in two minutes;
+`longer.py` takes ten to fifteen.)
 
 ## Exercises
 
@@ -116,8 +138,8 @@ token — the loss would drop to about 0.47. That is a clear target for the exer
 3. Remove the √D scaling and train with `n_embd=256`. Watch the loss.
 4. Untie the output layer (give it its own `(C, vocab)` matrix). How many parameters does that add,
    and does the held-out loss change?
-5. Make the model keep its animal. Train much longer, with a larger batch, or with more heads, and watch
-   for the loss to drop below the plateau of ~0.61 towards ~0.47 — then measure the animal again.
+5. Run `longer.py` with `n_layer=1`. Copying needs two heads working in sequence — can a one-layer model
+   still learn it? (Then try `n_layer=2, n_head=1`.)
 
 ## Where real models differ
 
@@ -127,5 +149,5 @@ architectures replace learned position vectors with rotary embeddings (RoPE), la
 GELU with SwiGLU, and share keys and values across heads (grouped-query attention) — refinements of
 the same block.
 
-**Next:** Chapter 4 — Inference: generating text one token at a time is slow done naively; a KV cache
+**Next:** [Chapter 4 — Inference](../04-inference/README.md): generating text one token at a time is slow done naively; a KV cache
 makes it fast, and the sampling strategy decides what the model says.
