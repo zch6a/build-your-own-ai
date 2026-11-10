@@ -25,7 +25,7 @@ agent that calls tools over a Model Context Protocol connection you also wrote.
 | | Chapter | You build | Status |
 |---|---|---|---|
 | 1 | [Tokenizer](chapters/01-tokenizer/README.md) | byte-level BPE: training, encoding, special tokens | ✅ |
-| 2 | Autograd | reverse-mode automatic differentiation on arrays | planned |
+| 2 | [Autograd](chapters/02-autograd/README.md) | reverse-mode automatic differentiation on arrays, Adam | ✅ |
 | 3 | GPT | a decoder-only transformer, trained on a laptop | planned |
 | 4 | Inference | temperature, top-k / top-p sampling, a KV cache | planned |
 | 5 | Vector database | exact search, then an HNSW index, with recall measured | planned |

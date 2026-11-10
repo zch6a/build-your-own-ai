@@ -20,5 +20,5 @@ then a local commit.
   including round trips of text the tokenizer never saw (other scripts, emoji, control characters).
   The demo shows something worth knowing: on this corpus training stops after 264 merges because every
   word is already one token — `vocab_size` is an upper bound — and says so instead of hiding it.
-- [ ] Chapter 2 — autograd.
+- [x] **Chapter 2 — autograd** (`byoai/autograd.py`): a `Tensor` that records its inputs and a backward closure; iterative topological sort (a 5,000-op chain does not hit the recursion limit); broadcasting undone as a sum; batched `@`, reshape, transpose, integer-array indexing with `np.add.at` (repeated token ids get both gradients), `masked_fill`, `softmax`, `log_softmax`, fused `cross_entropy` (stable at logits of ±1000), `layer_norm` built from primitives, GELU, `concatenate`; `no_grad`; AdamW (decay on matrices only); `gradcheck`. 35 tests — every operation checked against finite differences. One bug found by its own test: float32 tensors got float64 gradients (reductions return a numpy *scalar*, which the constructor upcast) — it matters for chapter 3's speed. Demo: hand-derived vs. autograd gradients, a finite-difference check, a 2-64-64-3 network learning three spirals to 100% in about a second, drawn as an ASCII map.
 - [ ] Chapters 3–8.

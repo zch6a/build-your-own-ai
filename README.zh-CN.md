@@ -21,7 +21,7 @@
 | | 章节 | 你会写出 | 状态 |
 |---|---|---|---|
 | 1 | [分词器](chapters/01-tokenizer/README.md) | 字节级 BPE：训练、编码、特殊 token | ✅ |
-| 2 | 自动微分 | 数组上的反向模式自动求导 | 计划中 |
+| 2 | [自动微分](chapters/02-autograd/README.md) | 数组上的反向模式自动求导、Adam | ✅ |
 | 3 | GPT | 一个在笔记本上训练的 decoder-only Transformer | 计划中 |
 | 4 | 推理 | temperature、top-k / top-p 采样、KV 缓存 | 计划中 |
 | 5 | 向量数据库 | 先是精确搜索，再是 HNSW 索引，并测量召回率 | 计划中 |
