@@ -1,12 +1,18 @@
 <div align="center">
 
-# 🧱 Build your own AI
+<img src="assets/banner.svg" alt="build-your-own-ai — Tokenizer, autograd, GPT, inference, vector database, RAG, agent and MCP — each built from scratch." width="100%">
 
-**Tokenizer, autograd, GPT, inference, vector database, RAG, agent and MCP — each built from scratch.**
+<p>
+<a href="https://github.com/zch6a/build-your-own-ai/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/zch6a/build-your-own-ai/actions/workflows/ci.yml/badge.svg"></a>
+<img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-3776ab?logo=python&logoColor=white">
+<img alt="numpy only" src="https://img.shields.io/badge/dependencies-numpy%20only-2ea44f">
+<img alt="8 chapters" src="https://img.shields.io/badge/chapters-8-orange">
+<a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue"></a>
+</p>
+
+**English** · [简体中文](README.zh-CN.md)
 
 Small, tested, readable modules that run on a laptop CPU. No API key, no GPU, no model download.
-
-[English](README.md) · [简体中文](README.zh-CN.md)
 
 </div>
 
@@ -72,7 +78,7 @@ Every number in the walkthroughs comes from running the code, and some of them a
 ## Run it
 
 ```bash
-git clone <this repo> && cd build-your-own-ai
+git clone https://github.com/zch6a/build-your-own-ai.git && cd build-your-own-ai
 uv sync                                        # Python 3.10+; numpy is the only dependency
 uv run pytest                                  # every chapter's tests
 uv run python chapters/01-tokenizer/run.py     # a chapter's demo

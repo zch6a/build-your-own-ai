@@ -1,12 +1,18 @@
 <div align="center">
 
-# 🧱 从零构建 AI
+<img src="assets/banner.zh-CN.svg" alt="build-your-own-ai — 分词器、自动微分、GPT、推理、向量数据库、RAG、Agent 和 MCP——每一样都从零写出来。" width="100%">
 
-**分词器、自动微分、GPT、推理、向量数据库、RAG、Agent 和 MCP——每一样都从零写出来。**
+<p>
+<a href="https://github.com/zch6a/build-your-own-ai/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/zch6a/build-your-own-ai/actions/workflows/ci.yml/badge.svg"></a>
+<img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-3776ab?logo=python&logoColor=white">
+<img alt="numpy only" src="https://img.shields.io/badge/dependencies-numpy%20only-2ea44f">
+<img alt="8 chapters" src="https://img.shields.io/badge/chapters-8-orange">
+<a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue"></a>
+</p>
+
+[English](README.md) · **简体中文**
 
 小而可读、带测试的模块，在笔记本 CPU 上就能跑。不需要 API key，不需要 GPU，不需要下载模型。
-
-[English](README.md) · [简体中文](README.zh-CN.md)
 
 </div>
 
@@ -59,7 +65,7 @@
 ## 运行
 
 ```bash
-git clone <本仓库> && cd build-your-own-ai
+git clone https://github.com/zch6a/build-your-own-ai.git && cd build-your-own-ai
 uv sync                                        # Python 3.10+；唯一的依赖是 numpy
 uv run pytest                                  # 所有章节的测试
 uv run python chapters/01-tokenizer/run.py     # 某一章的演示
