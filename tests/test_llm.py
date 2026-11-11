@@ -52,12 +52,12 @@ def reply(content="", tool_calls=None):
 
 def test_sends_a_chat_completion_request(server):
     server.replies.append((200, reply("Hello.")))
-    client = OpenAICompatible(server.url, "deepseek-chat", api_key="test-key")
+    client = OpenAICompatible(server.url, "deepseek-flash", api_key="test-key")
     out = client.chat([{"role": "user", "content": "Hi"}])
     assert out == {"role": "assistant", "content": "Hello.", "tool_calls": []}
     req = server.requests[0]
     assert req["path"] == "/v1/chat/completions" and req["auth"] == "Bearer test-key"
-    assert req["body"]["model"] == "deepseek-chat" and req["body"]["messages"][0]["content"] == "Hi"
+    assert req["body"]["model"] == "deepseek-flash" and req["body"]["messages"][0]["content"] == "Hi"
     assert "tools" not in req["body"]
 
 
@@ -127,7 +127,7 @@ def test_from_env_is_off_unless_configured(monkeypatch):
     monkeypatch.setenv("BYOAI_LLM_BASE_URL", "https://api.deepseek.com")
     with pytest.raises(LLMError, match="BYOAI_LLM_MODEL"):
         OpenAICompatible.from_env()
-    monkeypatch.setenv("BYOAI_LLM_MODEL", "deepseek-chat")
+    monkeypatch.setenv("BYOAI_LLM_MODEL", "deepseek-flash")
     client = OpenAICompatible.from_env()
     assert client.url == "https://api.deepseek.com/chat/completions" and client.api_key == "test-key"
 

@@ -39,8 +39,8 @@ Model Context Protocol to any client — including chapter 7's agent.
 
 Every number in the walkthroughs comes from running the code, and some of them are surprising:
 
-- **A phase change on a laptop.** The 3-layer GPT sits on a loss plateau, keeping the story's animal no
-  better than chance — then within a few hundred steps learns to copy it (19% → 70%), the
+- **A phase change on a laptop.** The 3-layer GPT sits on a loss plateau, keeping the story's animal little
+  better than chance — then within 500 steps learns to copy it (18% → 72% → 100%), the
   "induction head" jump seen in large models. ([chapter 3](chapters/03-gpt/README.md))
 - **Textbook claims, tested.** Without position embeddings this GPT trains to exactly the same loss
   (the causal mask leaks position); untying the output layer *lowers* the loss from 0.62 to 0.52.
@@ -92,6 +92,37 @@ anywhere unless `BYOAI_LLM_BASE_URL` is set.
 **The tools in your own agent.** `uv run python -m byoai.mcp` is a working MCP server (stdio) offering
 the chapter-7 tools; add it to Claude Code with
 `claude mcp add towns -- uv run --directory /path/to/build-your-own-ai python -m byoai.mcp`.
+
+## Before you start
+
+**You need** Python, and numpy at the level of array shapes and `@`. Matrix multiplication and the
+chain rule from calculus help; everything else — logits, attention, embeddings — is explained when it
+first appears.
+
+**Reading path.** In order, 1 → 8: each chapter uses the previous ones. Budget an evening per chapter,
+more with the exercises. Short on time? Chapters 5–8 (search, retrieval, agents, MCP) read on their
+own if you take "a model that predicts the next token" as given.
+
+**Costs.** The first demo from chapter 3 on trains the shared model once (about two minutes). The
+cache is keyed by the source code, so editing `gpt.py` for an exercise retrains it — on purpose.
+
+## FAQ
+
+**Why numpy and not PyTorch?** So nothing is hidden: every gradient in chapter 2 is code you can read,
+and chapter 4's engine shows exactly what a framework does for you. The ideas transfer one to one.
+
+**My numbers differ slightly.** Timings depend on the machine. Everything else is deterministic for a
+given seed and code — the same run gives the same losses, step for step.
+
+**How do I start over?** Delete `checkpoints/` (or point `BYOAI_CHECKPOINTS` somewhere else).
+
+**Can I use a real model?** Yes, for chapters 6 and 7 — see "A real model, optionally" above. Providers
+rename models now and then; take the model name from their documentation.
+
+**Where do the other numbers come from?** From the demos (`run.py`), and from the experiment scripts
+next to them: `chapters/03-gpt/longer.py` and `ablations.py`, `chapters/05-vectordb/random_vs_clustered.py`,
+`chapters/06-rag/lsa_whole_article.py`, and `scripts/mutate.py` for the mutation testing. The fast ones
+are pinned by `tests/test_published_numbers.py`.
 
 ## Principles
 

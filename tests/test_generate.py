@@ -44,9 +44,10 @@ def test_generation_continues_past_the_context_window():
     model = GPT(CFG, seed=4)
     out = Engine(model).generate([1, 2, 3], 60, temperature=0)
     assert len(out) == 63
-    # Without the cache it must make the same choices up to where the window first fills.
+    # Without the cache it must make exactly the same choices — past the full window too, since both
+    # modes see the same context (a first version slid the window in one mode and halved it in the other).
     naive = Engine(model).generate([1, 2, 3], 60, temperature=0, use_cache=False)
-    assert out[:32] == naive[:32]
+    assert out == naive
 
 
 def test_stop_tokens_end_the_stream():

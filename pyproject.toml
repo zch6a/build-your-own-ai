@@ -25,4 +25,5 @@ build-backend = "hatchling.build"
 packages = ["byoai"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "byoai"]
+addopts = "--doctest-modules"  # the docstring examples in byoai/ run as tests too

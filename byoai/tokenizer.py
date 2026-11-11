@@ -118,6 +118,9 @@ class Tokenizer:
         if isinstance(allowed_special, str) and allowed_special not in ("all", "none"):
             raise ValueError(f"allowed_special must be \"all\", \"none\" or a collection of tokens, not {allowed_special!r}")
         allowed = set(self.special) if allowed_special == "all" else (set() if allowed_special == "none" else set(allowed_special))
+        unknown = allowed - set(self.special)
+        if unknown:
+            raise ValueError(f"not special tokens of this tokenizer: {sorted(unknown)}")
         ids: list[int] = []
         if not allowed or not self._special_re:
             return self._encode_ordinary(text)

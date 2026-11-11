@@ -50,8 +50,8 @@ the first hit.) Without titles, small chunks lose almost two thirds of the answe
 go further — "contextual retrieval" has a model write a sentence of context for every chunk — but the
 title alone recovers most of it here.
 
-Smaller chunks are worse on every row of this data because the articles are tiny (76 words); whole
-articles score 0.99. With real documents of thousands of words the trade-off turns around: a whole
+Smaller chunks are worse overall here (hit@5 falls from 1.00 for whole articles to 0.93, 0.83 and 0.74
+for ≤40, ≤20 and ≤10 words, titled) because the articles are tiny (76 words). With real documents of thousands of words the trade-off turns around: a whole
 document does not fit the prompt, and a long chunk buries the one sentence that matters.
 
 ## BM25: keywords, weighted
@@ -86,10 +86,12 @@ hybrid (reciprocal rank fusion)      0.74   0.95   0.83
 LSA, 16 dimensions                   0.19   0.44   0.27
 ```
 
-LSA's better hit@5 is not understanding. Checking what it returns: its top results are *all* chunks of
-the right article 72% of the time, against 56% for BM25 — it latches on to the town (every chunk of an
-article shares the name and its vocabulary), and an article is only three chunks long. Its hit@1, where
-it would have to pick the right chunk *within* the article, is the same as BM25's. And with too few
+LSA's better hit@5 is not understanding. Checking what it returns
+([`lsa_whole_article.py`](lsa_whole_article.py)): its top results are *all* chunks of
+the right article 62% of the time at 64 dimensions and 72% at 128 (where hit@5 reaches 1.00), against
+56% for BM25 — it latches on to the town (every chunk of an article shares the name and its
+vocabulary), and an article is only three chunks long. Its hit@1, where it would have to pick the right
+chunk *within* the article, is no better than BM25's (0.73 at 64 dimensions, 0.66 at 128). And with too few
 dimensions it cannot even keep 60 town names apart (0.19 at 16).
 
 ## Hybrid: merge the rankings, not the scores

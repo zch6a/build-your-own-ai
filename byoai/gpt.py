@@ -6,9 +6,9 @@ before it (attention) and then think about what it saw (a small MLP). The output
 position, a score for every token in the vocabulary; training pushes up the score of the token that
 actually came next.
 
-    >>> from byoai.gpt import GPT, GPTConfig
-    >>> model = GPT(GPTConfig(vocab_size=520, block_size=64, n_layer=2, n_head=4, n_embd=64))
-    >>> logits, loss = model(idx, targets)       # idx, targets: (batch, time) integer arrays
+    from byoai.gpt import GPT, GPTConfig
+    model = GPT(GPTConfig(vocab_size=520, block_size=64, n_layer=2, n_head=4, n_embd=64))
+    logits, loss = model(idx, targets)       # idx, targets: (batch, time) integer arrays
 
 The architecture is GPT-2's: token and position embeddings, pre-norm blocks with residual
 connections, GELU, and an output layer that shares its weights with the token embedding.

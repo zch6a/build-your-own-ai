@@ -6,10 +6,10 @@ and every vector database answers it the same way — an *approximate* index tha
 neighbours while looking at a tiny fraction of the vectors. HNSW (Hierarchical Navigable Small World)
 is the one most of them use.
 
-    >>> from byoai.vectordb import FlatIndex, HNSWIndex
-    >>> index = HNSWIndex(dim=64)
-    >>> index.add(vectors)                       # (n, 64)
-    >>> ids, scores = index.search(query, k=10)
+    from byoai.vectordb import FlatIndex, HNSWIndex
+    index = HNSWIndex(dim=64)
+    index.add(vectors)                       # (n, 64)
+    ids, scores = index.search(query, k=10)
 
 Similarity is cosine: vectors are normalized when added, so a dot product is the cosine.
 """
@@ -64,7 +64,8 @@ class HNSWIndex:
     cross the space quickly, walks greedily towards the query, drops a layer, and repeats; at the
     bottom it explores more widely (`ef_search` candidates) and returns the best k.
 
-    * `M`: links per node per layer (layer 0 gets 2·M). More links: better recall, more memory.
+    * `M`: links a new node makes per layer; backlinks may fill a node up to M (2·M on layer 0). More
+      links: better recall, more memory.
     * `ef_construction`: how widely to search for neighbours while inserting. Better graph, slower build.
     * `ef_search`: how widely to search at query time. The recall/speed knob.
     """

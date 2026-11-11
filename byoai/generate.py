@@ -9,10 +9,10 @@ two ideas that every inference engine is built on:
 * **Sampling.** The model gives a probability for every token; how you pick from it — greedy,
   temperature, top-k, top-p — decides whether the text is repetitive, varied or nonsense.
 
-    >>> from byoai.generate import Engine
-    >>> engine = Engine(model)
-    >>> for token in engine.stream(prompt_ids, max_new_tokens=50, temperature=0.8, top_p=0.9):
-    ...     print(tok.decode([token]), end="")
+    from byoai.generate import Engine
+    engine = Engine(model)
+    for token in engine.stream(prompt_ids, max_new_tokens=50, temperature=0.8, top_p=0.9):
+        print(tok.decode([token]), end="")
 """
 
 from __future__ import annotations
@@ -160,25 +160,25 @@ class Engine:
             raise ValueError("generation needs a prompt of at least one token (e.g. the end-of-text token)")
         rng = np.random.default_rng(seed)
         stop = stop or set()
-        tokens = list(prompt)
         window = self.cfg.block_size
+        context = list(prompt)[-window:]  # what the model sees: the same in both modes
         cache = Cache()
-        logits = self.forward(tokens[-window:], cache)[-1]
+        logits = self.forward(context, cache)[-1]
         for _ in range(max_new_tokens):
             nxt = sample(logits, temperature, top_k, top_p, rng)
-            tokens.append(nxt)
             yield nxt
             if nxt in stop:
                 return
+            full = len(context) >= window
+            context = (context + [nxt])[-window // 2 :] if full else context + [nxt]
             if not use_cache:
-                # The naive way, for comparison: every step re-runs the whole context.
-                cache = Cache()
-                logits = self.forward(tokens[-window:], cache)[-1]
-            elif cache.length >= window:
-                cache = Cache()
-                logits = self.forward(tokens[-window // 2 :], cache)[-1]
+                # The naive way, for comparison: every step re-runs the whole context from scratch.
+                logits = self.forward(context, Cache())[-1]
+            elif full:
+                cache = Cache()  # the window is full: start again from its recent half
+                logits = self.forward(context, cache)[-1]
             else:
-                logits = self.forward([nxt], cache)[-1]
+                logits = self.forward([nxt], cache)[-1]  # only the new token's work
 
     def generate(self, prompt: list[int], max_new_tokens: int, **kwargs) -> list[int]:
         """The prompt followed by up to `max_new_tokens` new tokens."""

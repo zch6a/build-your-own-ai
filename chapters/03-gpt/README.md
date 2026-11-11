@@ -30,7 +30,7 @@ position (`wpe`), and adds them. Attention by itself has no notion of order — 
 a set — which is the usual reason given for position vectors. In a model with a causal mask, though,
 order leaks in anyway: position 3 can see three tokens and position 30 thirty, and the network can learn
 to tell them apart. Measured here: with `wpe` replaced by zeros, the held-out loss after 500 steps is the
-same 0.620. Position embeddings make the job easier at scale, and models without a mask (encoders like
+same 0.620 ([`ablations.py`](ablations.py) runs this and the next comparison). Position embeddings make the job easier at scale, and models without a mask (encoders like
 BERT) cannot do without them — but "the model would not know the order" is not true of this one.
 
 ## Attention: every position asks a question
@@ -70,7 +70,7 @@ write into the residual stream scaled down by √(2·layers), so the stream does
 
 The final layer turns a vector into a score per token: a `(C, vocab)` matrix. GPT-2 uses the
 transpose of the embedding table for it. The vector that represents a token on the way in is the same
-one that predicts it on the way out — 49,920 fewer parameters here (an untied model would have 11% more), and a token that
+one that predicts it on the way out — 49,920 fewer parameters here (an untied model would have 12.7% more), and a token that
 is only ever a *target* still trains its embedding (there is a test for exactly that). It is not free
 quality, though: with an untied output matrix this small model reaches held-out loss 0.52 after the
 same 500 steps instead of 0.62 (one run, measured). Tying saves memory, which matters for large
@@ -105,8 +105,10 @@ to 0.32 s for the largest configuration tried.
 
 ## What the demo shows
 
-Untrained, the model writes byte soup. After 500 steps it writes grammatical stories that are *new* —
-the demo checks every sentence against the training text — on held-out loss 0.62.
+Untrained, the model writes byte soup. After 500 steps, on held-out loss 0.62, it writes mostly
+grammatical stories: most sentences are ones the grammar can produce (the demo checks each against the
+training text), the odd one comes out broken ("It was rainy and the old house."), and the stories as
+a whole are new combinations.
 
 What it does not do yet is stay consistent: the dog of the first sentence becomes a bird in the third.
 The model has learned *where* an animal goes, not *which* one.
@@ -120,32 +122,35 @@ with the token before it; a second head then uses that mark to find the earlier 
 out beforehand: the animal appears about three times in a ~50-token story, so knowing it saves about
 3 × ln 10 / 50 ≈ 0.14 nats per token. After 500 steps the held-out loss sits on a plateau around 0.60–0.62, depending on the run.
 
-[`longer.py`](longer.py) trains for longer and measures, every 250 steps, how often the second sentence
-of a generated story names the animal of the first (a random pick among the 10 animals: 10%). Two
-runs: the first with an earlier version of the experiment (a different training and measuring setup),
-the second with `longer.py` as it is — which reproduces it step for step, since training here is
-deterministic for a given seed and code:
+[`longer.py`](longer.py) trains one model for 2,500 steps — one optimizer, one learning-rate schedule —
+and measures, every 250 steps, how often the second sentence of a generated story names the animal of
+the first (a random pick among the 10 animals: 10%):
 
 ```text
-             first run                       second run
-step   500: loss 0.620   animal kept  22%    loss 0.599   animal kept  19%
-step   750:                                  loss 0.549   animal kept  70%   ← the jump
-step  1000: loss 0.609   animal kept   9%    loss 0.548   animal kept  67%
-step  1500: loss 0.556   animal kept  53%    loss 0.524   animal kept 100%   ← the jump (first run)
-step  2000: loss 0.550   animal kept  65%    loss 0.523   animal kept 100%
+step   250: loss 0.642   animal kept  13%
+step   500: loss 0.627   animal kept  19%
+step   750: loss 0.624   animal kept  16%
+step  1000: loss 0.623   animal kept  18%     ← a thousand steps on the plateau
+step  1250: loss 0.577   animal kept  39%     ← then, within 500 steps, it learns to copy
+step  1500: loss 0.562   animal kept  72%
+step  1750: loss 0.526   animal kept 100%
+step  2500: loss 0.512   animal kept 100%
 ```
 
-For a while nothing seems to happen — the loss barely moves and the animal is a coin toss. Then,
-within a few hundred steps, the model starts copying, and the loss drops by 0.05–0.08 towards the
-0.47 the arithmetic predicted. *When* it happens is not fixed: the first run sat on the plateau for
-about a thousand steps, the second jumped at 750 and went on to keep the animal every time. (Change
-`SEED` in `longer.py` to see another timing.) That it
-happens suddenly is the same in both. This jump is what researchers found in real language models when
-they looked for "induction heads": the circuit forms in a short phase change, and in-context learning
+For a thousand steps nothing seems to happen — the loss barely moves and the animal is little better
+than chance. Then, within 500 steps, the model starts copying and the loss drops by 0.10, towards the
+0.47 the arithmetic predicted. This sudden jump is what researchers found in real language models when
+they looked for induction heads: the circuit forms in a short phase change, and in-context learning
 appears with it. It is one reason training curves are watched for a long time before anyone gives up.
+Training is deterministic, so the run repeats step for step; change `SEED` in `longer.py` to see the
+jump come at another step.
 
+An honest note on how this table was made. A first version of `longer.py` called `train` once per 250
+steps, which restarted the optimizer and the learning-rate schedule at every measurement — and its jump
+came right after such a restart (at step 750), so it could not tell a phase change from an artefact. A
+final review caught it. With one continuous schedule the jump is still there, later and cleaner.
 (The shared model of the later chapters trains for 500 steps, so every demo starts in two minutes;
-`longer.py` takes about fifteen.)
+`longer.py` takes about thirteen.)
 
 ## Exercises
 

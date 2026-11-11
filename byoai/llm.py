@@ -1,4 +1,4 @@
-"""An optional real model, for chapters 6–8: any OpenAI-compatible chat endpoint (DeepSeek included).
+"""An optional real model, for chapters 6 and 7: any OpenAI-compatible chat endpoint (DeepSeek included).
 
 Everything in this project runs without it — the chapters use the chapter-3 model or deterministic
 stand-ins, so the tests and demos need no key and cost nothing. If you have an endpoint, point these

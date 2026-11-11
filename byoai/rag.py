@@ -5,10 +5,10 @@ first: split the documents into chunks, find the chunks most relevant to the que
 the prompt. Everything here is measured against questions whose answers are known, because "it seems to
 work" is how most RAG systems ship broken.
 
-    >>> from byoai.rag import BM25, chunk_documents, RAG
-    >>> chunks = chunk_documents(documents, max_words=40)
-    >>> rag = RAG(chunks, BM25([c.text for c in chunks]))
-    >>> rag.ask("Who is the mayor of Nustorford?")
+    from byoai.rag import BM25, chunk_documents, RAG
+    chunks = chunk_documents(documents, max_words=40)
+    rag = RAG(chunks, BM25([c.text for c in chunks]))
+    rag.ask("Who is the mayor of Nustorford?")
 
 Retrievers: `BM25` (keywords, weighted), `LSA` (dense vectors from a factorized word matrix, searched
 with chapter 5's index), and `Hybrid` (both, merged by reciprocal rank fusion).

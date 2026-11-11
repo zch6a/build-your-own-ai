@@ -133,7 +133,7 @@ a file, an email). Treat every argument as untrusted input:
 * **`calculate` never calls `eval()`.** `__import__('os').system(...)` is a valid Python expression.
   `safe_eval` parses the expression and walks the syntax tree, allowing only numbers and arithmetic
   operators — and caps exponents, because `9 ** 9 ** 9` is arithmetic that never finishes. The tests
-  try seven attacks.
+  try ten attacks.
 * **`read_file` is sandboxed.** `sandboxed_reader(root)` resolves the requested path — `..`, absolute
   paths and symlinks included — and refuses anything that ends up outside `root`. Checking the string
   for `..` is not enough; a symlink inside the folder can point anywhere (tested too).

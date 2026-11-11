@@ -1,15 +1,41 @@
 # Changelog
 
-## Unreleased
+## 0.1.0 — first release (not yet published)
 
-- Chapter 1: byte-level BPE tokenizer (`byoai/tokenizer.py`), walkthrough, demo and tests.
-- Chapter 2: autograd (`byoai/autograd.py`) — reverse-mode autodiff on numpy arrays, AdamW, gradient checking; walkthrough, demo and tests.
-- Chapter 3: GPT (`byoai/gpt.py`) — a decoder-only transformer trained on the stories; `byoai/zoo.py` trains and caches the shared story model.
-- Chapter 4: inference (`byoai/generate.py`) — a numpy engine with a KV cache, sampling (temperature, top-k, top-p), streaming.
-- Chapter 5: vector database (`byoai/vectordb.py`) — exact `FlatIndex`, `HNSWIndex` with the paper's neighbour heuristic, soft deletes, save/load; `Engine.embed` for text vectors; a demo comparing model embeddings with a bag of words.
-- Chapter 6: RAG (`byoai/rag.py`) — sentence-aware chunking with title headers, BM25, LSA, reciprocal rank fusion, retrieval metrics, a prompt builder and a literal stand-in reader; `knowledge_base()` in `corpus.py`; `byoai/llm.py`, an optional client for OpenAI-compatible endpoints (DeepSeek included), off unless configured.
-- Chapter 7: agent (`byoai/agent.py`) — `@tool` schemas from type hints, argument validation, errors fed back to the model, step limit, repeated-call guard, result truncation, `safe_eval` and a sandboxed file reader; `byoai/planner.py`, an offline stand-in model with tasks, tools and a noisy-model wrapper.
-- Chapter 8: MCP (`byoai/mcp.py`) — JSON-RPC 2.0 over stdio, initialize/version negotiation, tools/list, tools/call with protocol vs tool errors; a subprocess client with timeouts whose tools plug into the agent; `python -m byoai.mcp` serves the town tools.
-- Chapter 3: `longer.py` trains for 2,500 steps and shows the copying circuit forming in a sudden jump.
-- Autograd: float32 stays float32 end to end (constants take the tensor's dtype), 2-D matrix products, faster GELU; `gradcheck` compares tiny gradients absolutely.
-- A generated training corpus (`byoai/corpus.py`).
+Eight chapters, each a module in `byoai/`, a walkthrough and a demo in `chapters/`, and tests. Python 3.10+,
+numpy as the only dependency, nothing to download, no API key.
+
+**The stack**
+
+- **Corpus** (`corpus.py`): a seeded grammar of short stories for training, and 60 encyclopedia articles about
+  invented towns with 360 questions for retrieval and the agent — generated, so there is nothing to license.
+- **1 · Tokenizer** (`tokenizer.py`): byte-level BPE — training with incremental pair counts, encoding by merge
+  rank with a cache, special tokens that text cannot inject, save/load. Lossless on any input.
+- **2 · Autograd** (`autograd.py`): a `Tensor` with reverse-mode differentiation — broadcasting, batched matrix
+  products, indexing, masking, fused softmax/cross-entropy, layer norm, GELU — AdamW and a finite-difference
+  `gradcheck` for every operation.
+- **3 · GPT** (`gpt.py`, `zoo.py`): GPT-2's architecture, trained on a laptop CPU in about two minutes; the
+  shared model is cached by its settings and source code. `longer.py` shows the induction-head phase change.
+- **4 · Inference** (`generate.py`): a numpy engine with a KV cache (about 10× faster), temperature, top-k,
+  top-p, streaming, and sentence embeddings.
+- **5 · Vector database** (`vectordb.py`): exact search and HNSW with the paper's neighbour heuristic, soft
+  deletes and save/load; recall measured against exact search.
+- **6 · RAG** (`rag.py`, `llm.py`): sentence-aware chunking with title headers, BM25, LSA, reciprocal rank
+  fusion, hit@k/MRR, a prompt builder, a stand-in reader that cites or says "I don't know" (0% wrong
+  answers), and an optional client for any OpenAI-compatible endpoint (DeepSeek included), off unless set.
+- **7 · Agent** (`agent.py`, `planner.py`): a tool-calling loop with schemas from type hints, validation,
+  errors fed back to the model, step and repeat limits, result truncation, a safe calculator and a
+  sandboxed file reader; an offline stand-in model with tasks and a noisy-model wrapper.
+- **8 · MCP** (`mcp.py`): a Model Context Protocol server and client over stdio — handshake with version
+  negotiation (2024-11-05 to 2025-11-25), tools/list with pagination, tools/call, cancellation, graceful
+  shutdown — and `python -m byoai.mcp`, a working server for Claude Code or any MCP client.
+
+**Quality**
+
+- 238 tests (including doctests) and every demo, passing locally on Windows with Python 3.14; CI is set up for Linux, Windows
+  and macOS with Python 3.10 and 3.13 (it runs once the repository is on GitHub).
+- Every number in the walkthroughs was produced by running the code; several first drafts were corrected
+  when the measurement disagreed (see [POLISH_LOG.md](POLISH_LOG.md)).
+- Five rounds of review: an independent code review, a learner doing the exercises, a check against the
+  MCP/OpenAI/DeepSeek specifications and the original papers, mutation testing (29 deliberate bugs, all
+  caught), and a final read-through.

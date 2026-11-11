@@ -53,6 +53,7 @@ def story_tokenizer() -> Tokenizer:
     if path.exists():
         return Tokenizer.load(path)
     tok = Tokenizer.train(stories(N_STORIES, seed=0), vocab_size=VOCAB, special=[EOT])
+    _replace_old(path, "stories-*.tok.json")
     tok.save(path)
     return tok
 
@@ -79,5 +80,14 @@ def story_model(steps: int = STEPS, seed: int = 0, verbose: bool = False) -> tup
     model = GPT(cfg, seed=seed)
     log = (lambda s, loss, t: print(f"  step {s:>4}: loss {loss:.3f}  ({t:.0f} s)")) if verbose else None
     train(model, data, steps=steps, batch_size=32, lr=3e-3, warmup=50, seed=seed, log=log)
+    _replace_old(path, "story-gpt-*.npz")
     model.save(path)
     return model, tok
+
+
+def _replace_old(path: Path, pattern: str) -> None:
+    """A new checkpoint replaces older ones of the same kind (made by earlier code or settings), so
+    editing `gpt.py` for an exercise does not leave a pile of stale models behind."""
+    for old in path.parent.glob(pattern):
+        if old != path:
+            old.unlink()

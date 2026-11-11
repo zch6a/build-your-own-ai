@@ -28,6 +28,7 @@ import queue
 import subprocess
 import sys
 import threading
+import time
 from typing import IO
 
 from byoai.agent import Tool, coerce, validate
@@ -82,7 +83,7 @@ class MCPServer:
         if method == "initialize":
             asked = params.get("protocolVersion")
             # Version negotiation: answer with the client's version if we support it, else our latest.
-            version = asked if asked in SUPPORTED_VERSIONS else PROTOCOL_VERSION
+            version = asked if asked in SUPPORTED_VERSIONS else SUPPORTED_VERSIONS[0]
             return _result(msg_id, {"protocolVersion": version, "capabilities": {"tools": {"listChanged": False}}, "serverInfo": self.info})
         if method == "ping":
             return _result(msg_id, {})
@@ -138,9 +139,9 @@ def _content(text: str, is_error: bool) -> dict:
 class MCPClient:
     """Starts a server as a subprocess and talks to it.
 
-        >>> with MCPClient(["uv", "run", "python", "-m", "byoai.mcp"]) as client:
-        ...     tools = client.tools()          # chapter 7 `Tool`s that call the server
-        ...     Agent(model, tools).run("...")
+        with MCPClient(["uv", "run", "python", "-m", "byoai.mcp"]) as client:
+            tools = client.tools()          # chapter 7 `Tool`s that call the server
+            Agent(model, tools).run("...")
 
     A reader thread puts every line from the server on a queue, so a server that hangs or dies is a
     timeout or an error here, never a frozen client. `trace` records every message both ways.
@@ -186,9 +187,10 @@ class MCPClient:
         self._next_id += 1
         msg_id = self._next_id
         self._send({"jsonrpc": "2.0", "id": msg_id, "method": method, **({"params": params} if params else {})})
+        deadline = time.monotonic() + self.timeout  # for the whole request: chatter does not extend it
         while True:
             try:
-                line = self._lines.get(timeout=self.timeout)
+                line = self._lines.get(timeout=max(0.0, deadline - time.monotonic()))
             except queue.Empty:
                 # Tell the server to stop working on it (the spec says a sender SHOULD), then give up.
                 try:

@@ -37,7 +37,8 @@ The test that matters most here checks that this is *exactly* the same computati
 tokens, then decode the rest one by one, and compare the logits at every step with a full forward pass
 (to 10⁻⁵). In the demo the cache makes generation about 10× faster — and the gap grows with length,
 because per new token the naive way does attention work proportional to the square of the length so
-far, the cached way linear in it.
+far, the cached way linear in it. (Up to the context window: once it is full, both modes continue from
+its recent half and see exactly the same tokens — a test checks they choose the same ones.)
 
 The cache has a cost too: memory. Here it is tiny, but for a large model it is
 `2 × layers × heads × head_dim × positions` numbers per sequence — gigabytes for long contexts, which is
@@ -71,7 +72,7 @@ plausible tokens, none of the implausible ones.
 def sample(logits, temperature=1.0, top_k=None, top_p=None, rng=None):
     if temperature == 0: return argmax(logits)
     logits = logits / temperature
-    if top_k:  logits[logits < kth_largest] = -inf
+    if top_k:  keep only the k largest (exactly k: argpartition, not "≥ the k-th value", which keeps ties)
     probs = softmax(logits)
     if top_p:  keep the most likely tokens until their sum reaches p; renormalize
     return rng.choice(len(probs), p=probs)

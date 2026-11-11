@@ -85,7 +85,8 @@ The obvious test data — random Gaussian vectors — is nothing like what a mod
 embeddings lie in clusters on a low-dimensional surface; random vectors in 32 dimensions fill the
 space evenly, and every point is nearly the same distance from every other. `clustered_vectors` makes
 the realistic kind (an 8-dimensional latent space, curved into 32 dimensions by a `tanh`), and the tests
-use it. What does random data do to HNSW? Measured on 3,000 vectors, 100 queries:
+use it. What does random data do to HNSW? Measured on 3,000 vectors, 100 queries
+([`random_vs_clustered.py`](random_vs_clustered.py)):
 
 ```text
                ef=16                        ef=64

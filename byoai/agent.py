@@ -6,14 +6,14 @@ the program runs the tool and appends the result to the conversation; the model 
 it replies with text, that is the answer. Everything else — validation, errors, limits, sandboxing —
 is what makes that loop safe to run.
 
-    >>> from byoai.agent import Agent, tool
-    >>> @tool
-    ... def calculate(expression: str) -> str:
-    ...     "Evaluate an arithmetic expression."
-    ...     return str(safe_eval(expression))
-    >>> agent = Agent(model, [calculate])
-    >>> result = agent.run("What is 17 * 23?")
-    >>> result.answer, result.steps
+    from byoai.agent import Agent, tool
+    @tool
+    def calculate(expression: str) -> str:
+        "Evaluate an arithmetic expression."
+        return str(safe_eval(expression))
+    agent = Agent(model, [calculate])
+    result = agent.run("What is 17 * 23?")
+    result.answer, result.steps
 
 `model` is anything with `chat(messages, tools) -> {"content", "tool_calls"}`: a real endpoint through
 `byoai.llm.OpenAICompatible`, a `ScriptedLLM`, or the offline `byoai.planner.TownPlanner`.

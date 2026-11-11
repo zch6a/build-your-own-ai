@@ -7,7 +7,7 @@ import pytest
 
 from byoai.agent import Agent, tool
 from byoai.corpus import knowledge_base
-from byoai.mcp import INVALID_PARAMS, INVALID_REQUEST, METHOD_NOT_FOUND, PARSE_ERROR, PROTOCOL_VERSION, MCPClient, MCPError, MCPServer
+from byoai.mcp import INVALID_PARAMS, INVALID_REQUEST, METHOD_NOT_FOUND, PARSE_ERROR, PROTOCOL_VERSION, SUPPORTED_VERSIONS, MCPClient, MCPError, MCPServer
 from byoai.planner import TownPlanner, agent_tasks, is_correct, town_tools
 
 
@@ -32,7 +32,7 @@ def test_initialize_negotiates_the_version():
     assert r["result"]["protocolVersion"] == "2025-03-26"  # a version we support: use the client's
     assert r["result"]["capabilities"] == {"tools": {"listChanged": False}} and r["result"]["serverInfo"]["name"] == "test"
     r = SERVER.handle(req("initialize", {"protocolVersion": "1999-01-01"}))
-    assert r["result"]["protocolVersion"] == PROTOCOL_VERSION  # one we do not: offer ours
+    assert r["result"]["protocolVersion"] == SUPPORTED_VERSIONS[0] == "2025-11-25"  # one we do not: offer our latest
 
 
 def test_notifications_get_no_reply():
