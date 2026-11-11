@@ -25,7 +25,7 @@
 | 3 | [GPT](chapters/03-gpt/README.md) | 一个在笔记本上两分钟训练完的 decoder-only Transformer | ✅ |
 | 4 | [推理](chapters/04-inference/README.md) | KV 缓存（快 10 倍）、temperature、top-k / top-p、流式输出 | ✅ |
 | 5 | [向量数据库](chapters/05-vectordb/README.md) | 先是精确搜索，再是 HNSW 索引，并测量召回率——以及向量里到底装了什么 | ✅ |
-| 6 | RAG | 切块、BM25、混合检索、评测 | 计划中 |
+| 6 | [RAG](chapters/06-rag/README.md) | 切块、BM25、稠密（LSA）与混合检索、会引用出处或说“不知道”的回答——全部有测量 | ✅ |
 | 7 | Agent | 一个调用工具的循环，模型可以替换 | 计划中 |
 | 8 | MCP | 一对基于 stdio 的 Model Context Protocol 服务端和客户端 | 计划中 |
 

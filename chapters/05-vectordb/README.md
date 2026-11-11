@@ -170,5 +170,5 @@ filters ("only documents from 2024") woven into the graph search, concurrent ins
 that repair the graph instead of marking nodes. Some use other indexes — IVF (cluster first, search a
 few clusters), or DiskANN for graphs on SSD — but HNSW is the default in most of them.
 
-**Next:** Chapter 6 — RAG: retrieve the right passages, put them in the prompt, and make a model answer
+**Next:** [Chapter 6 — RAG](../06-rag/README.md): retrieve the right passages, put them in the prompt, and make a model answer
 from them instead of from memory.
