@@ -1,0 +1,125 @@
+import io
+import json
+import sys
+import time
+
+import pytest
+
+from byoai.agent import Agent, tool
+from byoai.corpus import knowledge_base
+from byoai.mcp import INVALID_PARAMS, INVALID_REQUEST, METHOD_NOT_FOUND, PARSE_ERROR, PROTOCOL_VERSION, MCPClient, MCPError, MCPServer
+from byoai.planner import TownPlanner, agent_tasks, is_correct, town_tools
+
+
+@tool
+def shout(text: str) -> str:
+    """Upper-case the text."""
+    if text == "fail":
+        raise ValueError("refusing to shout that")
+    return text.upper()
+
+
+SERVER = MCPServer("test", [shout])
+
+
+def req(method, params=None, id=1):
+    return {"jsonrpc": "2.0", "id": id, "method": method, **({"params": params} if params is not None else {})}
+
+
+# ---- the server, message by message ------------------------------------------------------------------------
+def test_initialize_negotiates_the_version():
+    r = SERVER.handle(req("initialize", {"protocolVersion": "2025-03-26", "capabilities": {}, "clientInfo": {"name": "t"}}))
+    assert r["result"]["protocolVersion"] == "2025-03-26"  # a version we support: use the client's
+    assert r["result"]["capabilities"] == {"tools": {"listChanged": False}} and r["result"]["serverInfo"]["name"] == "test"
+    r = SERVER.handle(req("initialize", {"protocolVersion": "1999-01-01"}))
+    assert r["result"]["protocolVersion"] == PROTOCOL_VERSION  # one we do not: offer ours
+
+
+def test_notifications_get_no_reply():
+    server = MCPServer("t", [])
+    assert server.handle({"jsonrpc": "2.0", "method": "notifications/initialized"}) is None and server.initialized
+
+
+def test_tools_list():
+    tools = SERVER.handle(req("tools/list"))["result"]["tools"]
+    assert tools == [{"name": "shout", "description": "Upper-case the text.", "inputSchema": shout.parameters}]
+
+
+def test_tools_call_results_and_tool_errors():
+    ok = SERVER.handle(req("tools/call", {"name": "shout", "arguments": {"text": "hi"}}))["result"]
+    assert ok == {"content": [{"type": "text", "text": "HI"}], "isError": False}
+    failed = SERVER.handle(req("tools/call", {"name": "shout", "arguments": {"text": "fail"}}))["result"]
+    assert failed["isError"] and failed["content"][0]["text"] == "ValueError: refusing to shout that"
+    bad_args = SERVER.handle(req("tools/call", {"name": "shout", "arguments": {"txt": "hi"}}))["result"]
+    assert bad_args["isError"] and "missing required argument(s): text" in bad_args["content"][0]["text"]
+
+
+@pytest.mark.parametrize("message, code", [
+    (req("tools/call", {"name": "whisper", "arguments": {}}), INVALID_PARAMS),
+    (req("resources/list"), METHOD_NOT_FOUND),
+    ({"id": 1, "method": "ping"}, INVALID_REQUEST),
+    ([1, 2], INVALID_REQUEST),
+])
+def test_protocol_errors(message, code):
+    assert SERVER.handle(message)["error"]["code"] == code
+
+
+def test_serve_over_streams():
+    lines = [json.dumps(req("ping", id=7)), "", "{not json", json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"})]
+    out = io.StringIO()
+    MCPServer("t", []).serve(io.StringIO("\n".join(lines) + "\n"), out)
+    replies = [json.loads(line) for line in out.getvalue().splitlines()]
+    assert replies[0] == {"jsonrpc": "2.0", "id": 7, "result": {}}
+    assert replies[1]["error"]["code"] == PARSE_ERROR and replies[1]["id"] is None
+    assert len(replies) == 2  # the blank line and the notification produced nothing
+
+
+# ---- a real server in a real subprocess ---------------------------------------------------------------------
+@pytest.fixture(scope="module")
+def client(tmp_path_factory):
+    notes = tmp_path_factory.mktemp("notes")
+    (notes / "todo.txt").write_text("visit Nustorford", encoding="utf-8")
+    with MCPClient([sys.executable, "-m", "byoai.mcp", "--notes", str(notes)], timeout=60) as c:
+        yield c
+
+
+def test_handshake_and_discovery(client):
+    assert client.server_info["name"] == "byoai-towns" and client.protocol_version == PROTOCOL_VERSION
+    assert [t.name for t in client.tools()] == ["search_towns", "calculate", "read_file"]
+    sent = [m for direction, m in client.trace if direction == "→"]
+    assert sent[0]["method"] == "initialize" and sent[1] == {"jsonrpc": "2.0", "method": "notifications/initialized"}
+
+
+def test_remote_tools_behave_like_local_ones(client):
+    tools = {t.name: t for t in client.tools()}
+    assert tools["calculate"].fn(expression="25,700 + 35,300") == "61000"
+    assert tools["read_file"].fn(path="todo.txt") == "visit Nustorford"
+    assert json.loads(tools["search_towns"].fn(query="Nustorford mayor"))[0]["title"] == "Nustorford"
+    with pytest.raises(RuntimeError, match="outside the notes folder"):
+        tools["read_file"].fn(path="../secret.txt")
+    with pytest.raises(RuntimeError, match="not allowed"):
+        tools["calculate"].fn(expression="__import__('os')")
+    with pytest.raises(MCPError, match="unknown tool"):
+        client.request("tools/call", {"name": "nope", "arguments": {}})
+
+
+def test_an_agent_over_mcp_gets_the_same_answers(client):
+    docs, questions = knowledge_base()
+    tasks = agent_tasks(docs, questions, 20)
+    local = Agent(TownPlanner(), town_tools(docs))
+    remote = Agent(TownPlanner(), [t for t in client.tools() if t.name != "read_file"])
+    for t in tasks:
+        a, b = local.run(t["task"]), remote.run(t["task"])
+        assert a.answer == b.answer and is_correct(b.answer, t["answer"])
+
+
+def test_a_silent_server_is_a_timeout_not_a_hang():
+    started = time.perf_counter()
+    with pytest.raises(TimeoutError, match="initialize"):
+        MCPClient([sys.executable, "-c", "import time; time.sleep(30)"], timeout=1)
+    assert time.perf_counter() - started < 10  # and the hung server was killed, not waited for
+
+
+def test_a_server_that_exits_is_an_error():
+    with pytest.raises(MCPError, match="exited"):
+        MCPClient([sys.executable, "-c", "print('hello, not json')"], timeout=10)

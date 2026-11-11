@@ -31,7 +31,7 @@ agent that calls tools over a Model Context Protocol connection you also wrote.
 | 5 | [Vector database](chapters/05-vectordb/README.md) | exact search, then an HNSW index, with recall measured — and what an embedding holds | ✅ |
 | 6 | [RAG](chapters/06-rag/README.md) | chunking, BM25, dense (LSA) and hybrid retrieval, answers that cite or say "I don't know" — all measured | ✅ |
 | 7 | [Agent](chapters/07-agent/README.md) | a tool-calling loop with validation, error feedback, limits and sandboxed tools; any OpenAI-compatible model (DeepSeek included) drops in | ✅ |
-| 8 | MCP | a Model Context Protocol server and client over stdio | planned |
+| 8 | [MCP](chapters/08-mcp/README.md) | a Model Context Protocol server and client over stdio; the agent's tools, usable from Claude Code or any MCP client | ✅ |
 
 ## Run it
 

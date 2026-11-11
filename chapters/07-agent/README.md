@@ -169,5 +169,5 @@ sub-agents with their own tools, streaming, and long-running tasks that survive 
 work keep the loop simple and spend their effort where this chapter did: clear tool descriptions,
 errors the model can act on, limits, and tools that cannot do more damage than the task needs.
 
-**Next:** Chapter 8 — MCP: the Model Context Protocol, which lets any program offer tools to any agent.
+**Next:** [Chapter 8 — MCP](../08-mcp/README.md): the Model Context Protocol, which lets any program offer tools to any agent.
 The same tools, served over JSON-RPC on stdin/stdout, and a client that discovers and calls them.
