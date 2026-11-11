@@ -157,6 +157,16 @@ class GPT:
 
 
 # ---- training ---------------------------------------------------------------------------------------------
+def clip_grad_norm(params: list[Tensor], max_norm: float) -> float:
+    """Scale all gradients down together if their overall size exceeds `max_norm`: one unlucky batch
+    should not throw the weights far away. Returns the norm before clipping."""
+    norm = math.sqrt(sum(float((p.grad.astype(np.float64) ** 2).sum()) for p in params if p.grad is not None))
+    if norm > max_norm:
+        for p in params:
+            if p.grad is not None:
+                p.grad = p.grad * (max_norm / norm)  # a new array: gradients may be shared, never edit in place
+    return norm
+
 def batches(data: np.ndarray, block_size: int, batch_size: int, rng: np.random.Generator):
     """Random windows of the token stream: input `x`, and `y` = the same window shifted by one."""
     if len(data) <= block_size + 1:
@@ -197,12 +207,7 @@ def train(
         opt.zero_grad()
         _, loss = model(x, y)
         loss.backward()
-        # Clip the gradient's overall size: one unlucky batch should not throw the weights far away.
-        norm = math.sqrt(sum(float((p.grad.astype(np.float64) ** 2).sum()) for p in opt.params if p.grad is not None))
-        if norm > 1.0:
-            for p in opt.params:
-                if p.grad is not None:
-                    p.grad = p.grad * (1.0 / norm)  # a new array: gradients may be shared, never edit in place
+        clip_grad_norm(opt.params, 1.0)
         opt.step()
         losses.append(loss.item())
         if log and (step % log_every == 0 or step == steps - 1):

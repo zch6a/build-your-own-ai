@@ -1,6 +1,8 @@
 # Chapter 3 — GPT: a transformer you can train on a laptop
 
 > **Code:** [`byoai/gpt.py`](../../byoai/gpt.py) (about 210 lines) · **Tests:** [`tests/test_gpt.py`](../../tests/test_gpt.py) · **Run:** `uv run python chapters/03-gpt/run.py` (about two minutes)
+>
+> [← Chapter 2](../02-autograd/README.md) · [All chapters](../../README.md#chapters) · [Chapter 4 →](../04-inference/README.md)
 
 A language model answers one question again and again: *given these tokens, what comes next?* This
 chapter builds the architecture behind GPT-2, GPT-3 and most models since, from the operations of

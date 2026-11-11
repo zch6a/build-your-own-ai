@@ -2,8 +2,8 @@ import math
 
 import numpy as np
 
-from byoai.autograd import gradcheck
-from byoai.gpt import GPT, GPTConfig, evaluate, train
+from byoai.autograd import Tensor, gradcheck
+from byoai.gpt import GPT, GPTConfig, clip_grad_norm, evaluate, train
 
 SMALL = GPTConfig(vocab_size=50, block_size=16, n_layer=2, n_head=2, n_embd=16)
 
@@ -86,3 +86,22 @@ def test_evaluate_is_lower_after_training():
     before = evaluate(model, data, batches_n=5)
     train(model, data, steps=100, batch_size=16, lr=1e-2, warmup=10)
     assert evaluate(model, data, batches_n=5) < before / 3
+
+
+def test_gradient_clipping_scales_all_gradients_together():
+    a, b = Tensor(np.zeros(2), requires_grad=True), Tensor(np.zeros(1), requires_grad=True)
+    a.grad, b.grad = np.array([3.0, 0.0]), np.array([4.0])  # overall norm 5
+    assert clip_grad_norm([a, b], 1.0) == 5.0
+    assert np.allclose(a.grad, [0.6, 0.0]) and np.allclose(b.grad, [0.8])
+    a.grad, b.grad = np.array([0.3, 0.0]), np.array([0.4])  # below the limit: untouched
+    clip_grad_norm([a, b], 1.0)
+    assert np.allclose(a.grad, [0.3, 0.0])
+
+
+def test_residual_projections_start_smaller():
+    # GPT-2's init: layers writing into the residual stream get std 0.02 / sqrt(2 * n_layer).
+    cfg = GPTConfig(vocab_size=50, block_size=16, n_layer=8, n_head=4, n_embd=64)
+    p = GPT(cfg, seed=0).params
+    assert abs(p["h0.attn.w"].data.std() - 0.02) < 0.002
+    assert abs(p["h0.attn.proj.w"].data.std() - 0.02 / 4) < 0.0005
+    assert abs(p["h0.mlp.proj.w"].data.std() - 0.02 / 4) < 0.0005

@@ -1,6 +1,8 @@
 # Chapter 7 — An agent: a model, some tools, and a loop
 
 > **Code:** [`byoai/agent.py`](../../byoai/agent.py) (the loop and two safe tools, about 220 lines), [`byoai/planner.py`](../../byoai/planner.py) (an offline stand-in model and the tasks) · **Tests:** [`tests/test_agent.py`](../../tests/test_agent.py) · **Run:** `uv run python chapters/07-agent/run.py` (one second)
+>
+> [← Chapter 6](../06-rag/README.md) · [All chapters](../../README.md#chapters) · [Chapter 8 →](../08-mcp/README.md)
 
 "Agent" is the most inflated word in AI right now. Underneath, it is this:
 

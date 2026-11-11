@@ -102,7 +102,8 @@ the chapter-7 tools; add it to Claude Code with
   nothing to download or license.
 - **Tested.** The tests are part of the explanation: they state what each piece must guarantee
   (lossless round trips, special tokens that cannot be injected, deterministic training, sandboxes
-  that do not leak).
+  that do not leak). And they are tested themselves: 29 deliberate bugs, one at a time — a missing
+  attention scale, a dropped causal mask, a disabled sandbox check — and each one makes a test fail.
 - **Measured, then described.** Every number in the walkthroughs was produced by running the code; when
   a result differed from the expectation (when the phase change happens, LSA's "better" recall), the
   text says what actually happened and why.

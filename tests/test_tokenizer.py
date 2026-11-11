@@ -116,3 +116,19 @@ def test_training_and_encoding_are_fast_enough():
     encode_s = time.perf_counter() - t0
     assert train_s < 20, train_s
     assert encode_s < 10, encode_s
+
+
+def test_ties_go_to_the_smallest_pair():
+    # "ab" and " cd" give three pairs seen once each; the smallest — (space, "c") — is merged first.
+    assert Tokenizer.train("ab cd", vocab_size=257).merges == {(32, 99): 256}
+
+
+def test_longer_special_tokens_win_over_their_prefixes():
+    t = Tokenizer.train("some text", vocab_size=260, special=["<s>", "<s>!"])
+    assert t.encode("<s>!", allowed_special="all") == [t.special["<s>!"]]
+
+
+def test_encoding_uses_the_chunk_cache():
+    t = Tokenizer.train(stories(20), vocab_size=300)
+    t.encode("the cat")
+    assert t._cache  # the cache is what makes encoding the training text fast (exercise 3)

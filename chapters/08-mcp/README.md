@@ -1,6 +1,8 @@
 # Chapter 8 — MCP: tools for any agent, over stdin and stdout
 
 > **Code:** [`byoai/mcp.py`](../../byoai/mcp.py) (server, client and the town server, about 250 lines) · **Tests:** [`tests/test_mcp.py`](../../tests/test_mcp.py) · **Run:** `uv run python chapters/08-mcp/run.py` (two seconds)
+>
+> [← Chapter 7](../07-agent/README.md) · [All chapters](../../README.md#chapters)
 
 Chapter 7's tools live inside the agent: to give a different agent the same tools, you would copy the
 code. The Model Context Protocol (MCP) takes them out. A **server** is any program that offers tools;

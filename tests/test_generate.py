@@ -118,3 +118,17 @@ def test_save_writes_the_path_it_was_given(tmp_path):
     model.save(tmp_path / "model")  # no ".npz": numpy alone would have added it
     loaded = GPT.load(tmp_path / "model")
     assert np.array_equal(loaded.params["wte"].data, model.params["wte"].data)
+
+
+def test_a_full_window_is_rebuilt_from_its_recent_half():
+    # When the cache reaches block_size, generation goes on from the most recent block_size // 2 tokens:
+    # record what the engine is fed.
+    engine = Engine(GPT(CFG, seed=3))
+    fed = []
+    forward = engine.forward
+    engine.forward = lambda ids, cache: (fed.append(list(ids)), forward(ids, cache))[1]
+    prompt = [1, 2, 3]
+    window = CFG.block_size
+    out = engine.generate(prompt, window + 2 - len(prompt), temperature=0)
+    assert fed[0] == prompt and all(len(f) == 1 for f in fed[1 : window - len(prompt) + 1])
+    assert fed[window - len(prompt) + 1] == out[: window + 1][-(window // 2):]

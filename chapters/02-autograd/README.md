@@ -1,6 +1,8 @@
 # Chapter 2 — Autograd: gradients for free
 
 > **Code:** [`byoai/autograd.py`](../../byoai/autograd.py) (about 440 lines) · **Tests:** [`tests/test_autograd.py`](../../tests/test_autograd.py) · **Run:** `uv run python chapters/02-autograd/run.py`
+>
+> [← Chapter 1](../01-tokenizer/README.md) · [All chapters](../../README.md#chapters) · [Chapter 3 →](../03-gpt/README.md)
 
 Training a network means repeating one step: compute the loss, find out how the loss changes when
 each weight changes a little — the gradient — and move every weight a little in the direction that

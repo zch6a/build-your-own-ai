@@ -1,6 +1,8 @@
 # Chapter 1 — A tokenizer: byte-level BPE
 
 > **Code:** [`byoai/tokenizer.py`](../../byoai/tokenizer.py) (about 200 lines) · **Tests:** [`tests/test_tokenizer.py`](../../tests/test_tokenizer.py) · **Run:** `uv run python chapters/01-tokenizer/run.py`
+>
+> [All chapters](../../README.md#chapters) · [Chapter 2 →](../02-autograd/README.md)
 
 A language model never sees text. It sees a sequence of integers, predicts the next integer, and the
 tokenizer turns those integers back into text. Which integers it uses is a real design decision:

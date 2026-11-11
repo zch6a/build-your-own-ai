@@ -1,6 +1,8 @@
 # Chapter 4 — Inference: fast generation, and choosing what to say
 
 > **Code:** [`byoai/generate.py`](../../byoai/generate.py) (about 170 lines) · **Tests:** [`tests/test_generate.py`](../../tests/test_generate.py) · **Run:** `uv run python chapters/04-inference/run.py` (seconds, once the chapter-3 model is trained)
+>
+> [← Chapter 3](../03-gpt/README.md) · [All chapters](../../README.md#chapters) · [Chapter 5 →](../05-vectordb/README.md)
 
 A trained model gives, for the next position, a probability for every token. Turning that into text
 raises two questions every inference engine answers: how to avoid redoing work at each step, and how
@@ -101,5 +103,5 @@ finish, quantize weights to 8 or 4 bits, and use speculative decoding: a small m
 tokens and the large one checks them in a single pass. The cache and the sampling rules are the same as
 here.
 
-**Next:** [Chapter 5](../05-vectordb/README.md) — a vector database: exact nearest-neighbour search, then an HNSW index that finds
+**Next:** [Chapter 5 — Vector database](../05-vectordb/README.md): exact nearest-neighbour search, then an HNSW index that finds
 almost the same neighbours far faster.

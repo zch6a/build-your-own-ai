@@ -1,6 +1,8 @@
 # Chapter 6 — RAG: look it up, then answer
 
 > **Code:** [`byoai/rag.py`](../../byoai/rag.py) (about 280 lines), [`byoai/llm.py`](../../byoai/llm.py) (an optional real model) · **Tests:** [`tests/test_rag.py`](../../tests/test_rag.py), [`tests/test_llm.py`](../../tests/test_llm.py) · **Run:** `uv run python chapters/06-rag/run.py` (two seconds)
+>
+> [← Chapter 5](../05-vectordb/README.md) · [All chapters](../../README.md#chapters) · [Chapter 7 →](../07-agent/README.md)
 
 A language model knows what was in its training data, as of when it was trained, approximately.
 Retrieval-augmented generation (RAG) stops asking it to remember: find the passages that answer the

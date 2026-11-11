@@ -90,3 +90,14 @@ then a local commit.
 - **Code read for readability**: one dead check removed from tokenizer training (a pair count can never be below 1 there) and the tie-breaking rule commented.
 - **Chinese and English READMEs aligned**: chapter 3's two measured surprises (no position embeddings → same loss; untied output → 0.52) in both; chapter 5's summary numbers updated to the corrected HNSW.
 - **Re-measured**: held-out loss 0.62, 199/199 over MCP, RAG and agent tables unchanged; chapter 5 tables replaced. 225 tests.
+
+## Round 4
+
+- **Mutation testing** (29 deliberate bugs in the key code paths, one at a time, in a scratch clone): 22 caught by their own chapter's tests at first. Against the whole suite, the missing √D scale was caught too (chapter 4's engine re-implements attention and is compared with chapter 3's), leaving **6 bugs no test noticed**:
+  - tokenizer tie-breaking reversed, special tokens matched shortest-first (`<s>` would win over `<s>!`), the encoding cache switched off;
+  - gradient clipping disabled, GPT-2's residual-projection init scaling removed;
+  - the KV cache rebuilt from a quarter of the window instead of half (greedy output of an untrained model did not change, so a first test attempt passed on the bug — the test now records what the engine is fed).
+  Gradient clipping moved into `clip_grad_norm` (numerically identical: `1.0 / norm` as before) so it can be tested alone. Seven tests added; all 29 mutants now make a test fail (one by hanging: `9 ** 9 ** 9` without the exponent cap). 231 tests.
+- **New-user run**: fresh clone, `uv sync` 5 s, `uv run pytest` 21 s (no training, no `checkpoints/` created), demos run with `PYTHONIOENCODING` unset.
+- **Navigation**: every chapter now starts with "← previous · all chapters · next →"; chapter 4's "Next" link matched to the others.
+- READMEs say what the mutation testing found, as evidence that the tests test something.

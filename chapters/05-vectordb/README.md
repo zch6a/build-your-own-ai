@@ -1,6 +1,8 @@
 # Chapter 5 — A vector database: exact search, then HNSW
 
 > **Code:** [`byoai/vectordb.py`](../../byoai/vectordb.py) (about 250 lines) · **Tests:** [`tests/test_vectordb.py`](../../tests/test_vectordb.py) · **Run:** `uv run python chapters/05-vectordb/run.py` (about 30 seconds)
+>
+> [← Chapter 4](../04-inference/README.md) · [All chapters](../../README.md#chapters) · [Chapter 6 →](../06-rag/README.md)
 
 RAG, recommendations, deduplication and "more like this" all ask the same question: *which stored
 vectors are closest to this one?* This chapter answers it twice: first exactly, then the way every
