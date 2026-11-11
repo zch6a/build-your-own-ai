@@ -107,7 +107,10 @@ best-matching sentence from the passages — or "I don't know." Two rules make i
 1. **Stay on topic.** A passage counts only if it is *about* the names in the question. Without this
    rule, "How many people live in Nustorford?" was answered from the article on Tamgalwick, which
    mentions Nustorford as its neighbour — and whose "About 19,300 people live in Tamgalwick." matches
-   the question's words beautifully.
+   the question's words beautifully. Which words are names is decided against the known article
+   titles, in any case: a first version used capital letters, and a lowercase question ("who is the
+   mayor of nustorford?") silently switched the rule off — 61% wrong answers. A test now asks every
+   question in lowercase too.
 2. **Match on the rest.** Score sentences by the question's *other* words, weighted by rarity among
    sentences, ignoring question words — otherwise "How many…" matched "Visitors remark on *how* quiet
    the evenings are."

@@ -3,7 +3,9 @@
 Chapter 3 trains a small GPT on the generated stories; chapters 4–7 use it (sampling, embeddings,
 retrieval, an agent). Training takes a minute or two on a CPU, so the result is kept in
 `checkpoints/` (or `$BYOAI_CHECKPOINTS`), keyed by everything that determines it: corpus size,
-tokenizer size, model shape, training steps and seed. Change any of them and it is trained again.
+tokenizer size, model shape, training steps and seed — and the source code of the modules that build
+it. Change any of them (an exercise that removes the position embedding, say) and it is trained again
+instead of a stale model being loaded.
 """
 
 from __future__ import annotations
@@ -33,13 +35,21 @@ def checkpoints() -> Path:
     return d
 
 
+def _code(*modules: str) -> str:
+    """A fingerprint of the source files a checkpoint depends on."""
+    here = Path(__file__).resolve().parent
+    # Line endings normalized: a Windows checkout with CRLF must find the same checkpoint.
+    return hashlib.sha256(b"".join((here / m).read_bytes().replace(b"\r\n", b"\n") for m in modules)).hexdigest()[:12]
+
+
 def _key(**parts) -> str:
     return hashlib.sha256(json.dumps(parts, sort_keys=True).encode()).hexdigest()[:12]
 
 
 def story_tokenizer() -> Tokenizer:
     """BPE trained on the stories, with `<|endoftext|>` between them."""
-    path = checkpoints() / f"stories-{_key(n=N_STORIES, vocab=VOCAB, eot=EOT)}.tok.json"
+    key = _key(n=N_STORIES, vocab=VOCAB, eot=EOT, code=_code("corpus.py", "tokenizer.py"))
+    path = checkpoints() / f"stories-{key}.tok.json"
     if path.exists():
         return Tokenizer.load(path)
     tok = Tokenizer.train(stories(N_STORIES, seed=0), vocab_size=VOCAB, special=[EOT])
@@ -61,7 +71,8 @@ def story_model(steps: int = STEPS, seed: int = 0, verbose: bool = False) -> tup
     """The chapter-3 GPT trained on the stories (from the cache when it is there)."""
     tok = story_tokenizer()
     cfg = GPTConfig(vocab_size=tok.vocab_size, **CONFIG)
-    path = checkpoints() / f"story-gpt-{_key(cfg=asdict(cfg), steps=steps, seed=seed, n=N_STORIES)}.npz"
+    key = _key(cfg=asdict(cfg), steps=steps, seed=seed, n=N_STORIES, code=_code("corpus.py", "tokenizer.py", "autograd.py", "gpt.py"))
+    path = checkpoints() / f"story-gpt-{key}.npz"
     if path.exists():
         return GPT.load(path), tok
     data = story_ids(tok)

@@ -163,11 +163,13 @@ def test_rag_with_a_model_parses_the_citation(kb):
     assert all(p in sent for p in out["passages"])
 
 
-def test_rag_without_a_model_answers_most_literal_questions(kb):
+@pytest.mark.parametrize("case", [str, str.lower])
+def test_rag_without_a_model_answers_most_literal_questions(kb, case):
+    # Lowercase questions too: capitalization must not be what keeps the reader on topic.
     docs, questions = kb
     chunks = chunk_documents(docs, max_words=40)
     rag = RAG(chunks, BM25([c.text for c in chunks]))
-    answers = [rag.ask(q["question"])["answer"] for q in questions]
+    answers = [rag.ask(case(q["question"]))["answer"] for q in questions]
     correct = sum(q["answer"] in a for q, a in zip(questions, answers)) / len(questions)
     wrong = sum(q["answer"] not in a and a != "I don't know." for q, a in zip(questions, answers)) / len(questions)
     assert correct > 0.6 and wrong < 0.1, (correct, wrong)

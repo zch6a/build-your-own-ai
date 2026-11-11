@@ -30,13 +30,13 @@ import sys
 import threading
 from typing import IO
 
-from byoai.agent import Tool, validate
+from byoai.agent import Tool, coerce, validate
 
 PROTOCOL_VERSION = "2025-06-18"
 SUPPORTED_VERSIONS = ("2025-06-18", "2025-03-26", "2024-11-05")
 
 # JSON-RPC error codes
-PARSE_ERROR, INVALID_REQUEST, METHOD_NOT_FOUND, INVALID_PARAMS = -32700, -32600, -32601, -32602
+PARSE_ERROR, INVALID_REQUEST, METHOD_NOT_FOUND, INVALID_PARAMS, INTERNAL_ERROR = -32700, -32600, -32601, -32602, -32603
 
 
 class MCPError(RuntimeError):
@@ -64,10 +64,17 @@ class MCPServer:
         self.initialized = False
 
     def handle(self, message: object) -> dict | None:
-        """One incoming message → the response to send, or None (notifications get no reply)."""
+        """One incoming message → the response to send, or None (notifications get no reply).
+
+        Nothing a client sends may crash the server: every shape is checked before it is used, and
+        `serve` turns anything unexpected into an internal error (−32603) instead of exiting."""
+        if isinstance(message, dict) and "method" not in message and ("result" in message or "error" in message):
+            return None  # a response to a request of ours; this server sends none, so there is nothing to match
         if not isinstance(message, dict) or message.get("jsonrpc") != "2.0" or not isinstance(message.get("method"), str):
             return _error(message.get("id") if isinstance(message, dict) else None, INVALID_REQUEST, "not a JSON-RPC 2.0 request")
-        method, params, msg_id = message["method"], message.get("params") or {}, message.get("id")
+        method, params, msg_id = message["method"], message.get("params", {}), message.get("id")
+        if not isinstance(params, dict):
+            return None if "id" not in message else _error(msg_id, INVALID_PARAMS, "params must be an object")
         if "id" not in message:  # a notification
             if method == "notifications/initialized":
                 self.initialized = True
@@ -82,14 +89,14 @@ class MCPServer:
         if method == "tools/list":
             return _result(msg_id, {"tools": [{"name": t.name, "description": t.description, "inputSchema": t.parameters} for t in self.tools.values()]})
         if method == "tools/call":
-            name, args = params.get("name"), params.get("arguments") or {}
-            if name not in self.tools:
+            name, args = params.get("name"), params.get("arguments", {})
+            if not isinstance(name, str) or name not in self.tools:
                 return _error(msg_id, INVALID_PARAMS, f"unknown tool: {name!r}")
             problem = validate(args, self.tools[name].parameters)
             if problem:
                 return _result(msg_id, _content(f"invalid arguments: {problem}", True))
             try:
-                return _result(msg_id, _content(str(self.tools[name].fn(**args)), False))
+                return _result(msg_id, _content(str(self.tools[name].fn(**coerce(args, self.tools[name].parameters))), False))
             except Exception as e:
                 return _result(msg_id, _content(f"{type(e).__name__}: {e}", True))
         return _error(msg_id, METHOD_NOT_FOUND, f"method not found: {method}")
@@ -105,7 +112,11 @@ class MCPServer:
             except json.JSONDecodeError as e:
                 response = _error(None, PARSE_ERROR, f"parse error: {e}")
             else:
-                response = self.handle(message)
+                try:
+                    response = self.handle(message)
+                except Exception as e:  # a bug of ours must cost one request, not the whole session
+                    msg_id = message.get("id") if isinstance(message, dict) else None
+                    response = _error(msg_id, INTERNAL_ERROR, f"internal error: {type(e).__name__}: {e}")
             if response is not None:
                 stdout.write(json.dumps(response) + "\n")
                 stdout.flush()
@@ -187,8 +198,17 @@ class MCPClient:
             except json.JSONDecodeError:
                 continue  # not protocol output (a misbehaving server printed something); skip it
             self.trace.append(("←", message))
+            if not isinstance(message, dict):
+                continue
+            if "method" in message:
+                # The server's own request or notification. Ids are per sender, so a server request
+                # may carry the same id as ours — it is not our answer. Answer ping; refuse the rest.
+                if "id" in message:
+                    reply = _result(message["id"], {}) if message["method"] == "ping" else _error(message["id"], METHOD_NOT_FOUND, f"client does not support {message['method']}")
+                    self._send(reply)
+                continue
             if message.get("id") != msg_id:
-                continue  # a notification, or a reply to something else
+                continue  # a late reply to an earlier request that timed out
             if "error" in message:
                 raise MCPError(message["error"].get("code", 0), message["error"].get("message", ""))
             return message.get("result", {})
@@ -209,12 +229,18 @@ class MCPClient:
                 for t in self.request("tools/list").get("tools", [])]
 
     def close(self) -> None:
+        """Ask the server to exit by closing its stdin; kill it if it has not within five seconds — and
+        always reap it, so no zombie process is left behind on POSIX."""
         if self.process.poll() is None:
-            self.process.stdin.close()  # stdin closing is the polite way to ask a stdio server to exit
+            try:
+                self.process.stdin.close()  # stdin closing is the polite way to ask a stdio server to exit
+            except OSError:
+                pass
             try:
                 self.process.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 self.process.kill()
+                self.process.wait()
 
     def __enter__(self) -> MCPClient:
         return self

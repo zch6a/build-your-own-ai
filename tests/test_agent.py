@@ -49,8 +49,10 @@ def test_tool_schema_from_signature_and_docstring():
     ([1], "must be a JSON object"),
     ({}, "missing required argument(s): a"),
     ({"a": 1, "c": 2}, "unknown argument(s): c"),
-    ({"a": "1"}, "'a' must be a integer"),
-    ({"a": True}, "'a' must be a integer"),
+    ({"a": "1"}, "'a' must be an integer"),
+    ({"a": True}, "'a' must be an integer"),
+    ({"a": 3.0}, None),
+    ({"a": 3.5}, "'a' must be an integer"),
 ])
 def test_validate(args, problem):
     result = validate(args, add.parameters)
@@ -146,6 +148,9 @@ def test_safe_eval_does_arithmetic():
     "[1, 2]",
     "x + 1",
     "1 +" + " 1 +" * 100 + " 1",
+    "(1,2)",      # was silently 12
+    "1,5 * 2",    # a European decimal: was silently 30
+    "(-8) ** 0.5",  # complex
 ])
 def test_safe_eval_refuses_everything_else(attack):
     with pytest.raises((ValueError, SyntaxError)):
@@ -179,6 +184,30 @@ def test_sandbox_sees_through_symlinks(tmp_path):
         sandboxed_reader(notes).fn(path="link.txt")
 
 
+# ---- grading ----------------------------------------------------------------------------------------------
+COMPARE = {"answer": "Kelby", "kind": "compare", "options": ["Kelby", "Morton"]}
+
+
+@pytest.mark.parametrize("answer, task, ok", [
+    ("Kelby has more inhabitants (5000 in Kelby, 300 in Morton).", COMPARE, True),
+    ("Morton has more inhabitants (300 in Morton, 5000 in Kelby).", COMPARE, False),
+    ("Between Morton and Kelby, Kelby has more people.", COMPARE, True),
+    ("I could not find the population of Kelby, Morton.", COMPARE, False),
+    ("31000 people live there.", {"answer": "1000"}, False),
+    ("61,000 people live there.", {"answer": "61000"}, True),
+    ("I don't know who the mayor of Kelby is; maybe Ada Venn.", {"answer": "Ada Venn"}, False),
+])
+def test_grading_is_strict(answer, task, ok):
+    assert is_correct(answer, task) is ok
+
+
+def test_a_planner_that_never_searches_scores_nothing():
+    docs, questions = knowledge_base()
+    tasks = agent_tasks(docs, questions, 40)
+    agent = Agent(TownPlanner(tries=0), town_tools(docs))
+    assert sum(is_correct(agent.run(t["task"]).answer, t) for t in tasks) == 0
+
+
 # ---- the town agent ---------------------------------------------------------------------------------------
 @pytest.fixture(scope="module")
 def town():
@@ -191,7 +220,7 @@ def test_planner_solves_every_kind_of_task(town):
     agent = Agent(TownPlanner(), tools)
     results = [agent.run(t["task"]) for t in tasks]
     assert {t["kind"] for t in tasks} == {"lookup", "compare", "total", "age"}
-    assert all(is_correct(r.answer, t["answer"]) for t, r in zip(tasks, results))
+    assert all(is_correct(r.answer, t) for t, r in zip(tasks, results))
 
 
 def test_parallel_calls_save_turns(town):
@@ -203,7 +232,7 @@ def test_parallel_calls_save_turns(town):
 
 def test_searching_again_differently_matters(town):
     tasks, tools = town
-    first_try_only = sum(is_correct(Agent(TownPlanner(tries=1), tools).run(t["task"]).answer, t["answer"]) for t in tasks)
+    first_try_only = sum(is_correct(Agent(TownPlanner(tries=1), tools).run(t["task"]).answer, t) for t in tasks)
     assert first_try_only < 0.9 * len(tasks)
 
 
@@ -212,5 +241,5 @@ def test_error_feedback_recovers_from_a_noisy_model(town):
     rate = {}
     for feedback in (True, False):
         agent = Agent(Noisy(TownPlanner(), p=0.3, seed=1), tools, feedback=feedback)
-        rate[feedback] = sum(is_correct(agent.run(t["task"]).answer, t["answer"]) for t in tasks) / len(tasks)
+        rate[feedback] = sum(is_correct(agent.run(t["task"]).answer, t) for t in tasks) / len(tasks)
     assert rate[True] > 0.95 and rate[False] < 0.7, rate

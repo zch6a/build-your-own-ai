@@ -98,6 +98,25 @@ def test_deleted_vectors_are_never_returned():
     assert target not in ids and len(ids) == 10 and len(hnsw) == 399
 
 
+def test_searching_after_many_deletes_stays_cheap_and_finds_live_neighbours():
+    data = clustered(2000, 16, seed=4)
+    hnsw = HNSWIndex(16, M=8, ef_construction=60, seed=2)
+    hnsw.add(data)
+    for i in range(0, 2000, 2):
+        hnsw.delete(i)
+    hnsw.delete(hnsw.entry)  # the entry point too: it must keep routing
+    live = [i for i in range(2000) if i not in hnsw.deleted]
+    flat = FlatIndex(16)
+    flat.add(data[live])
+    queries = clustered(50, 16, seed=5)
+    hnsw.distance_computations = 0
+    found = [hnsw.search(q, 10, ef=32)[0] for q in queries]
+    exact = [np.array(live)[flat.search(q, 10)[0]] for q in queries]
+    assert all(hnsw.deleted.isdisjoint(f.tolist()) for f in found)
+    assert recall_at_k(found, exact) > 0.9
+    assert hnsw.distance_computations / len(queries) < 0.4 * 2000  # not a flat scan
+
+
 def test_save_and_load(tmp_path, built):
     _, hnsw, _, queries = built
     path = tmp_path / "index.pkl"

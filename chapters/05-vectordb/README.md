@@ -1,6 +1,6 @@
 # Chapter 5 — A vector database: exact search, then HNSW
 
-> **Code:** [`byoai/vectordb.py`](../../byoai/vectordb.py) (about 250 lines) · **Tests:** [`tests/test_vectordb.py`](../../tests/test_vectordb.py) · **Run:** `uv run python chapters/05-vectordb/run.py` (about a minute)
+> **Code:** [`byoai/vectordb.py`](../../byoai/vectordb.py) (about 250 lines) · **Tests:** [`tests/test_vectordb.py`](../../tests/test_vectordb.py) · **Run:** `uv run python chapters/05-vectordb/run.py` (about 30 seconds)
 
 RAG, recommendations, deduplication and "more like this" all ask the same question: *which stored
 vectors are closest to this one?* This chapter answers it twice: first exactly, then the way every
@@ -22,7 +22,7 @@ top = np.argpartition(-scores, k - 1)[:k]          # the k largest, unordered: O
 top = top[np.argsort(-scores[top])]                # order just those k
 ```
 
-`FlatIndex` is the whole of it. It is exact, simple and, with numpy, fast: 8,000 vectors in 0.13 ms.
+`FlatIndex` is the whole of it. It is exact, simple and, with numpy, fast: 8,000 vectors in 0.04 ms.
 It is also the ground truth every approximate index is measured against. Its cost grows with n: a
 billion vectors is a billion dot products per query.
 
@@ -101,12 +101,12 @@ graph.) Then the knob:
 
 ```text
    ef  recall@10  distances  ms/query
-   10      0.731        181      0.43
-   32      0.893        318      0.85
-   64      0.938        452      1.18
-  128      0.964        662      1.63
-  256      0.993       1002      4.11
- flat      1.000       8000      0.13
+   10      0.731        181      0.18
+   32      0.893        318      0.31
+   64      0.938        452      0.55
+  128      0.964        662      0.84
+  256      0.993       1002      1.45
+ flat      1.000       8000      0.04
 ```
 
 Be honest about the last line: at 8,000 vectors, numpy's single matrix product beats a Python graph

@@ -64,6 +64,36 @@ def test_protocol_errors(message, code):
     assert SERVER.handle(message)["error"]["code"] == code
 
 
+@pytest.mark.parametrize("message", [
+    req("tools/call", [1, 2]),
+    req("initialize", "x"),
+    req("tools/call", {"name": ["shout"], "arguments": {}}),
+    req("tools/call", {"name": "shout", "arguments": [1]}),
+])
+def test_malformed_params_are_errors_not_crashes(message):
+    r = SERVER.handle(message)
+    assert ("error" in r and r["error"]["code"] == INVALID_PARAMS) or r["result"]["isError"]
+
+
+def test_serve_survives_anything():
+    class Buggy(MCPServer):
+        def handle(self, message):
+            if message.get("method") == "explode":
+                raise KeyError("oops")
+            return super().handle(message)
+
+    lines = [json.dumps(req("explode", id=1)), json.dumps(req("tools/call", [1], id=2)), json.dumps(req("ping", id=3))]
+    out = io.StringIO()
+    Buggy("t", []).serve(io.StringIO("\n".join(lines) + "\n"), out)
+    replies = [json.loads(line) for line in out.getvalue().splitlines()]
+    assert [r["id"] for r in replies] == [1, 2, 3]
+    assert replies[0]["error"]["code"] == -32603 and replies[2]["result"] == {}
+
+
+def test_responses_from_the_client_are_ignored():
+    assert SERVER.handle({"jsonrpc": "2.0", "id": 5, "result": {}}) is None
+
+
 def test_serve_over_streams():
     lines = [json.dumps(req("ping", id=7)), "", "{not json", json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"})]
     out = io.StringIO()
@@ -110,7 +140,40 @@ def test_an_agent_over_mcp_gets_the_same_answers(client):
     remote = Agent(TownPlanner(), [t for t in client.tools() if t.name != "read_file"])
     for t in tasks:
         a, b = local.run(t["task"]), remote.run(t["task"])
-        assert a.answer == b.answer and is_correct(b.answer, t["answer"])
+        assert a.answer == b.answer and is_correct(b.answer, t)
+
+
+TRICKY_SERVER = r'''
+import json, sys
+def send(m):
+    sys.stdout.write(json.dumps(m) + "\n"); sys.stdout.flush()
+for line in sys.stdin:
+    m = json.loads(line)
+    if "method" not in m:
+        continue
+    if m["method"] == "initialize":
+        send({"jsonrpc": "2.0", "id": m["id"], "result": {"protocolVersion": "2025-06-18", "capabilities": {}, "serverInfo": {"name": "tricky"}}})
+    elif m["method"] == "tools/call":
+        # First a request of the server's own, with the *same id* as the client's request.
+        send({"jsonrpc": "2.0", "id": m["id"], "method": "ping"})
+        pong = json.loads(sys.stdin.readline())
+        send({"jsonrpc": "2.0", "id": m["id"], "result": {"content": [{"type": "text", "text": "pong was " + json.dumps(pong.get("result"))}], "isError": False}})
+    # "hang": never answer
+'''
+
+
+def test_server_requests_with_a_colliding_id_are_not_mistaken_for_replies():
+    with MCPClient([sys.executable, "-c", TRICKY_SERVER], timeout=10) as client:
+        result = client.request("tools/call", {"name": "x", "arguments": {}})
+        assert result["content"][0]["text"] == "pong was {}"
+
+
+def test_a_timeout_after_the_handshake_and_close_reaps_the_server():
+    client = MCPClient([sys.executable, "-c", TRICKY_SERVER], timeout=1)
+    with pytest.raises(TimeoutError, match="hang"):
+        client.request("hang")
+    client.close()
+    assert client.process.returncode is not None
 
 
 def test_a_silent_server_is_a_timeout_not_a_hang():

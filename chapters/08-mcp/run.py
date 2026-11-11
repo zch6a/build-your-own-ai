@@ -58,7 +58,7 @@ with MCPClient([sys.executable, "-m", "byoai.mcp"]) as client:
         answers[name] = [r.answer for r in runs]
     print(f"\nchapter 7's agent on {len(tasks)} tasks, with the same planner:")
     for name, (seconds, calls) in timings.items():
-        correct = sum(is_correct(a, t["answer"]) for a, t in zip(answers[name], tasks))
+        correct = sum(is_correct(a, t) for a, t in zip(answers[name], tasks))
         print(f"  {name:<18} {correct}/{len(tasks)} correct   {calls} tool calls   {seconds * 1000 / calls:.2f} ms per call")
     same = answers["in-process tools"] == answers["tools over MCP"]
     print(f"  identical answers: {same}; the process boundary costs "

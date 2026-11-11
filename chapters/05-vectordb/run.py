@@ -2,7 +2,7 @@
 
     uv run python chapters/05-vectordb/run.py
 
-Part 3 uses the story model from chapter 3 (trained on first use, then loaded from checkpoints/).
+Part 4 uses the story model from chapter 3 (trained on first use, then loaded from checkpoints/).
 """
 
 from __future__ import annotations

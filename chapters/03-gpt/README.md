@@ -1,6 +1,6 @@
 # Chapter 3 — GPT: a transformer you can train on a laptop
 
-> **Code:** [`byoai/gpt.py`](../../byoai/gpt.py) (about 250 lines) · **Tests:** [`tests/test_gpt.py`](../../tests/test_gpt.py) · **Run:** `uv run python chapters/03-gpt/run.py` (about two minutes)
+> **Code:** [`byoai/gpt.py`](../../byoai/gpt.py) (about 210 lines) · **Tests:** [`tests/test_gpt.py`](../../tests/test_gpt.py) · **Run:** `uv run python chapters/03-gpt/run.py` (about two minutes)
 
 A language model answers one question again and again: *given these tokens, what comes next?* This
 chapter builds the architecture behind GPT-2, GPT-3 and most models since, from the operations of
@@ -105,7 +105,7 @@ The model has learned *where* an animal goes, not *which* one.
 Keeping the animal means attending back to its first mention and copying it — a two-step circuit (one
 head finds "the token after the earlier `with a`", another copies it). What it is worth can be worked
 out beforehand: the animal appears about three times in a ~50-token story, so knowing it saves about
-3 × ln 10 / 50 ≈ 0.14 nats per token. The loss after 500 steps sits on a plateau at about 0.61.
+3 × ln 10 / 50 ≈ 0.14 nats per token. After 500 steps the held-out loss sits on a plateau around 0.60–0.62, depending on the run.
 
 [`longer.py`](longer.py) trains for longer and measures, every 250 steps, how often the second sentence
 of a generated story names the animal of the first (a random pick among the 10 animals: 10%). Two

@@ -50,8 +50,9 @@ PRETOKENIZE.findall("Mia's 2024 kites, flew!")
 
 Merges happen only *inside* a chunk. Note the leading space belongs to the word (`' kites'`): the
 model learns `" kites"` as one token, which is why GPT vocabularies are full of tokens starting with a
-space. Numbers are split into groups of at most three digits so that `"2024"` and `"1999"` share
-pieces instead of each becoming a token of its own.
+space. Numbers are split into groups of at most three digits (`"2024"` → `"202"`, `"4"`), so the tokenizer
+cannot spend its vocabulary on every number it happens to see often — only 1,110 digit strings of up to three digits
+exist, and there is no point learning `"1999"` as one token.
 
 **Special tokens are opt-in.** Models use control tokens like `<|endoftext|>` to mark document
 boundaries. If the tokenizer turned that *string* into the control token wherever it appears, anyone
@@ -63,8 +64,8 @@ who can put text in front of the model — a web page, a file, a tool result —
 The naive loop recounts every pair in the whole corpus after every merge. Two ideas make it fast
 enough to train in a fraction of a second here:
 
-1. **Count words, not positions.** After pre-tokenization, the corpus is a few hundred *distinct*
-   chunks with counts (`" the"` × 4,821). A pair's frequency is the sum over the chunks it occurs in.
+1. **Count words, not positions.** After pre-tokenization, the demo's 2,000 stories are just 105
+   *distinct* chunks with counts (`" the"` × 7,956). A pair's frequency is the sum over the chunks it occurs in.
 2. **Update incrementally.** Keep, for each pair, the set of chunks it occurs in. A merge only touches
    those chunks: subtract their old pairs, merge, add their new pairs. Everything else stays counted.
 
@@ -91,8 +92,8 @@ for wi in list(where.pop(best, ())):     # only the words that contain the pair
 2. Train on `stories(2000)` and encode a sentence of plain English prose that is *not* about these
    stories. Which words fall apart into small pieces?
 3. Write `encode` without the cache. How much slower is encoding the training text?
-4. A tokenizer can be attacked: find a string that encodes to many more tokens than its length in
-   bytes would suggest. (Hint: there is a hard upper bound — why?)
+4. A tokenizer can be attacked: find a string that encodes to far more tokens than ordinary text of the
+   same length (no compression at all). Can any string need *more* tokens than it has bytes? (Why not?)
 
 ## Where real tokenizers differ
 

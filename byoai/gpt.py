@@ -123,6 +123,8 @@ class GPT:
     # ---- generating (chapter 4 makes this fast and adds better sampling) ------------------------------
     def generate(self, idx: list[int], max_new_tokens: int, temperature: float = 1.0, rng: np.random.Generator | None = None) -> list[int]:
         """Append tokens one at a time: run the model, sample from the last position's distribution."""
+        if not idx:
+            raise ValueError("generate needs a prompt of at least one token (e.g. the end-of-text token)")
         rng = rng or np.random.default_rng()
         out = list(idx)
         with no_grad():
@@ -139,7 +141,10 @@ class GPT:
 
     # ---- saving --------------------------------------------------------------------------------------
     def save(self, path: str | Path) -> None:
-        np.savez(path, __config__=np.array(json.dumps(asdict(self.config))), **{k: t.data for k, t in self.params.items()})
+        """Save to exactly `path` (numpy alone would append ".npz" to a name without it, and `load`
+        would then not find the file)."""
+        with open(path, "wb") as f:
+            np.savez(f, __config__=np.array(json.dumps(asdict(self.config))), **{k: t.data for k, t in self.params.items()})
 
     @classmethod
     def load(cls, path: str | Path) -> GPT:
@@ -153,6 +158,8 @@ class GPT:
 # ---- training ---------------------------------------------------------------------------------------------
 def batches(data: np.ndarray, block_size: int, batch_size: int, rng: np.random.Generator):
     """Random windows of the token stream: input `x`, and `y` = the same window shifted by one."""
+    if len(data) <= block_size + 1:
+        raise ValueError(f"need more than block_size + 1 = {block_size + 1} tokens of training data, got {len(data)}")
     while True:
         starts = rng.integers(0, len(data) - block_size - 1, size=batch_size)
         x = np.stack([data[s : s + block_size] for s in starts])

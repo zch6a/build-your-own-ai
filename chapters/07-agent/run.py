@@ -34,7 +34,7 @@ for m in result.messages[2:]:
         print(f"  tool   ← {content[:110]}")
     elif m["role"] == "assistant":
         print(f"  model  : {m['content']}")
-print(f"\n  {result.steps} model turns, {len(result.calls)} tool calls; correct: {is_correct(result.answer, task['answer'])}")
+print(f"\n  {result.steps} model turns, {len(result.calls)} tool calls; correct: {is_correct(result.answer, task)}")
 
 
 # ---- 2. All tasks ---------------------------------------------------------------------------------------------
@@ -43,7 +43,7 @@ def measure(agent: Agent) -> dict:
     for kind in ("lookup", "compare", "total", "age"):
         group = [t for t in tasks if t["kind"] == kind]
         runs = [agent.run(t["task"]) for t in group]
-        out[kind] = (sum(is_correct(r.answer, t["answer"]) for t, r in zip(group, runs)) / len(group), sum(r.steps for r in runs) / len(runs))
+        out[kind] = (sum(is_correct(r.answer, t) for t, r in zip(group, runs)) / len(group), sum(r.steps for r in runs) / len(runs))
     return out
 
 
@@ -62,7 +62,7 @@ for p in (0.0, 0.1, 0.3, 0.5):
     for feedback in (True, False):
         agent = Agent(Noisy(TownPlanner(), p, seed=1), tools, feedback=feedback)
         runs = [agent.run(t["task"]) for t in tasks]
-        rates[feedback] = sum(is_correct(r.answer, t["answer"]) for t, r in zip(tasks, runs)) / len(tasks)
+        rates[feedback] = sum(is_correct(r.answer, t) for t, r in zip(tasks, runs)) / len(tasks)
         if feedback:
             turns, limit = sum(r.steps for r in runs) / len(runs), sum(r.stopped == "max_steps" for r in runs)
     print(f"  {p:>10.0%} {rates[True]:>17.0%} {rates[False]:>12.0%}   {turns:>16.1f}   {limit:>14}")
@@ -75,5 +75,5 @@ else:
     sample = tasks[:12]
     agent = Agent(llm, tools, system="Answer questions about towns. Use search_towns to find facts and calculate for arithmetic. Answer in one sentence.")
     runs = [agent.run(t["task"]) for t in sample]
-    print(f"\n{llm.model}: {sum(is_correct(r.answer, t['answer']) for t, r in zip(sample, runs))}/{len(sample)} correct, "
+    print(f"\n{llm.model}: {sum(is_correct(r.answer, t) for t, r in zip(sample, runs))}/{len(sample)} correct, "
           f"{sum(r.steps for r in runs) / len(runs):.1f} turns per task")

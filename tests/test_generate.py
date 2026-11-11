@@ -1,10 +1,11 @@
 import time
 
 import numpy as np
+import pytest
 
 from byoai.autograd import no_grad
 from byoai.generate import Cache, Engine, sample
-from byoai.gpt import GPT, GPTConfig
+from byoai.gpt import GPT, GPTConfig, batches
 
 CFG = GPTConfig(vocab_size=60, block_size=32, n_layer=2, n_head=4, n_embd=32)
 
@@ -87,3 +88,33 @@ def test_the_cache_is_faster():
     engine.generate([1, 2, 3], 100, temperature=0, use_cache=False)
     naive = time.perf_counter() - t0
     assert naive > 2 * cached, (naive, cached)
+
+
+# ---- edge cases (from an independent review) --------------------------------------------------------------
+def test_top_k_keeps_exactly_k_even_with_ties():
+    rng = np.random.default_rng(0)
+    picks = {sample(np.array([1.0, 1.0, 1.0, 0.0]), top_k=1, rng=rng) for _ in range(50)}
+    assert len(picks) == 1
+
+
+@pytest.mark.parametrize("kwargs", [dict(temperature=-1.0), dict(top_k=0), dict(top_p=0.0), dict(top_p=1.5)])
+def test_invalid_sampling_settings_are_refused(kwargs):
+    with pytest.raises(ValueError):
+        sample(np.zeros(5), **kwargs)
+
+
+def test_empty_inputs_are_clear_errors():
+    model = GPT(CFG, seed=0)
+    engine = Engine(model)
+    for call in (lambda: model.generate([], 3), lambda: engine.generate([], 3), lambda: engine.embed([])):
+        with pytest.raises(ValueError, match="prompt|empty"):
+            call()
+    with pytest.raises(ValueError, match="more than block_size"):
+        next(batches(np.arange(10), block_size=32, batch_size=2, rng=np.random.default_rng(0)))
+
+
+def test_save_writes_the_path_it_was_given(tmp_path):
+    model = GPT(CFG, seed=0)
+    model.save(tmp_path / "model")  # no ".npz": numpy alone would have added it
+    loaded = GPT.load(tmp_path / "model")
+    assert np.array_equal(loaded.params["wte"].data, model.params["wte"].data)

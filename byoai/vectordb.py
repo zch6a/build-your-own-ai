@@ -204,8 +204,11 @@ class HNSWIndex:
         entries = [self.entry]
         for layer in range(self.top_layer, 0, -1):
             entries = [self._search_layer(q, entries, 1, layer)[0][1]]
-        # Deleted nodes take up room in the result: search a little wider so k live ones remain.
-        found = self._search_layer(q, entries, ef + len(self.deleted & set(range(self.n))) if self.deleted else ef, 0)
+        # Deleted nodes take up room in the result: search wider so k live ones remain — by the share of
+        # deleted nodes, not their count (with half deleted, ef + n/2 would be nearly a flat scan).
+        if self.deleted:
+            ef = min(self.n, int(ef / max(1 - len(self.deleted) / self.n, 0.05)) + 1)
+        found = self._search_layer(q, entries, ef, 0)
         live = [(d, i) for d, i in found if i not in self.deleted][:k]
         return np.array([i for _, i in live], dtype=np.int64), np.array([1.0 - d for d, _ in live], dtype=np.float32)
 

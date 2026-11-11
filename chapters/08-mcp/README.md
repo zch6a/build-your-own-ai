@@ -74,13 +74,25 @@ The client has its own failure modes, each tested:
 
 * **A server that hangs.** A reader thread moves every line from the server onto a queue, and each
   request waits on the queue with a timeout. A silent server is a `TimeoutError` after `timeout`
-  seconds, not a frozen client — and the hung process is killed, not left behind.
+  seconds, not a frozen client. If it hangs during the handshake, the client kills it at once; a later
+  request that times out leaves it running (it may only be slow, and a late reply is recognized by its
+  `id` and dropped), and `close()` ends it.
+* **Requests from the server.** The server may send requests of its own (`ping`, and in the full
+  protocol `sampling/createMessage` and others). JSON-RPC ids are per sender, so a server request can
+  carry the same id as the client's pending one — a client that matched on `id` alone would take the
+  server's `ping` for its tool result (the first version did; a review caught it). Anything with a
+  `method` is a request or notification, never a reply: the client answers `ping` and refuses the rest.
 * **A server that dies** closes its stdout; the reader posts a sentinel, and the waiting request
   fails with "server exited".
 * **Noise on stdout.** Lines that are not JSON are skipped, and responses are matched by `id`, so a
   notification arriving in between does not get mistaken for the answer.
 * **Shutdown.** Closing the server's stdin is how a stdio server is asked to stop; it is killed only if it
-  does not exit within five seconds.
+  does not exit within five seconds, and always reaped (no zombie processes on Linux and macOS).
+
+The server, for its part, must survive anything a client sends: `params` that are not an object, a
+tool name that is not a string, and — if the server itself has a bug — an exception in `handle`, which
+becomes an internal error (−32603) for that one request instead of ending the session. (The first
+version crashed on `{"params": [1, 2]}`; three tests now send such messages.)
 
 ## What the demo shows
 

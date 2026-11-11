@@ -37,13 +37,22 @@ def sample(logits: np.ndarray, temperature: float = 1.0, top_k: int | None = Non
       the model is sure, many when it is not.
     """
     logits = np.asarray(logits, dtype=np.float64)
+    if temperature < 0:
+        raise ValueError("temperature must be >= 0 (a negative one would favour the least likely tokens)")
+    if top_k is not None and top_k < 1:
+        raise ValueError("top_k must be at least 1 (or None for no limit)")
+    if top_p is not None and not 0 < top_p <= 1:
+        raise ValueError("top_p must be in (0, 1]")
     if temperature == 0:
         return int(logits.argmax())
     rng = rng or np.random.default_rng()
     logits = logits / temperature
     if top_k is not None and top_k < len(logits):
-        kth = np.partition(logits, -top_k)[-top_k]
-        logits = np.where(logits < kth, -np.inf, logits)
+        # Exactly k, even with ties (a threshold on the k-th value would keep every token tied with it).
+        keep = np.argpartition(-logits, top_k - 1)[:top_k]
+        masked = np.full_like(logits, -np.inf)
+        masked[keep] = logits[keep]
+        logits = masked
     probs = np.exp(logits - logits.max())
     probs /= probs.sum()
     if top_p is not None and top_p < 1.0:
@@ -91,6 +100,8 @@ class Engine:
     def embed(self, ids: list[int]) -> np.ndarray:
         """One vector for a whole text: the final hidden states, averaged over its positions (chapter 5
         uses these to search). Texts longer than the context are embedded from their last block."""
+        if not ids:
+            raise ValueError("cannot embed an empty text")
         return self.hidden(ids[-self.cfg.block_size :], Cache()).mean(axis=0)
 
     def hidden(self, ids: list[int], cache: Cache) -> np.ndarray:
@@ -145,6 +156,8 @@ class Engine:
         When the context fills up (`block_size` positions — the most this model's position table
         covers), the cache is rebuilt from the most recent half of the context and generation goes on.
         """
+        if not prompt:
+            raise ValueError("generation needs a prompt of at least one token (e.g. the end-of-text token)")
         rng = np.random.default_rng(seed)
         stop = stop or set()
         tokens = list(prompt)

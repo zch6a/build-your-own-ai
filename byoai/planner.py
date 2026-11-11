@@ -57,7 +57,7 @@ def agent_tasks(documents: list[dict], questions: list[dict], n: int = 100, seed
         elif kind == "compare":
             if pop(a) == pop(b):
                 continue
-            tasks.append({"task": f"Which has more inhabitants, {x} or {y}?", "answer": x if pop(a) > pop(b) else y, "kind": kind})
+            tasks.append({"task": f"Which has more inhabitants, {x} or {y}?", "answer": x if pop(a) > pop(b) else y, "kind": kind, "options": [x, y]})
         elif kind == "total":
             tasks.append({"task": f"How many people live in {x} and {y} together?", "answer": str(pop(a) + pop(b)), "kind": kind})
         else:
@@ -65,9 +65,25 @@ def agent_tasks(documents: list[dict], questions: list[dict], n: int = 100, seed
     return tasks
 
 
-def is_correct(answer: str, expected: str) -> bool:
-    """The expected name or number appears in the answer (numbers compared without commas)."""
-    return expected.replace(",", "") in answer.replace(",", "")
+def is_correct(answer: str, task: dict) -> bool:
+    """Does `answer` give the task's answer? Stricter than "the expected text appears somewhere":
+
+    * A refusal ("I could not find…", "I don't know") is never correct, whatever names it repeats.
+    * Numbers must match a whole number in the answer: "31000" is not "1000" (commas ignored).
+    * For a comparison, the answer must *choose* the right town: it is the first of the two named, or
+      the one followed by "has more". (A first version accepted any answer containing the expected
+      name — and every comparison answer names both towns. It scored a planner that never searched
+      at 100%; an independent review caught it.)
+    """
+    expected = task["answer"]
+    if re.match(r"\s*I (could not|couldn't|don't|do not|cannot)", answer):
+        return False
+    if expected.replace(",", "").isdigit():
+        return expected.replace(",", "") in {n.replace(",", "") for n in re.findall(r"\d[\d,]*", answer)}
+    if task.get("kind") == "compare":
+        named = sorted((answer.find(t), t) for t in task["options"] if t in answer)
+        return bool(named) and (named[0][1] == expected or f"{expected} has more" in answer)
+    return expected in answer
 
 
 # ---- tools ------------------------------------------------------------------------------------------------

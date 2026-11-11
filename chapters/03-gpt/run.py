@@ -3,7 +3,8 @@
     uv run python chapters/03-gpt/run.py
 
 Training takes a minute or two on a laptop CPU; the trained model is cached in checkpoints/ for the
-next chapters (delete the folder to train again).
+next chapters, keyed by the settings and the source code — change gpt.py for an exercise and it trains
+again by itself.
 """
 
 from __future__ import annotations

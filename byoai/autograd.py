@@ -71,6 +71,7 @@ class Tensor:
         self._parents = _parents
         self._backward: Callable[[np.ndarray], None] = lambda g: None
         self._op = _op
+        self._used = False  # set once backward() has run through this tensor's graph
 
     # ---- the graph ---------------------------------------------------------------------------------
     @staticmethod
@@ -91,7 +92,14 @@ class Tensor:
         self.grad = g if self.grad is None else self.grad + g
 
     def backward(self, grad: np.ndarray | None = None) -> None:
-        """Gradients of this tensor (a scalar loss, usually) with respect to everything it came from."""
+        """Gradients of this tensor (a scalar loss, usually) with respect to everything it came from.
+
+        Leaf gradients *accumulate* across passes (call `zero_grad` between steps). A graph can be used
+        once: afterwards its intermediate tensors still hold their gradients, and running backward
+        through them again would count those twice (`(x*x).sum()` twice gave dx = 16, not 8). So a
+        second call raises, as in PyTorch — run the forward pass again instead."""
+        if self._used:
+            raise RuntimeError("backward() already ran through this graph; run the forward pass again (leaf gradients accumulate)")
         if grad is None:
             if self.data.size != 1:
                 raise ValueError("backward() without a gradient needs a scalar; pass grad= for anything else")
@@ -114,6 +122,9 @@ class Tensor:
         for node in reversed(order):
             if node.grad is not None and node._parents:
                 node._backward(node.grad)
+        for node in order:
+            if node._parents:
+                node._used = True
 
     def zero_grad(self) -> None:
         self.grad = None
@@ -236,7 +247,12 @@ class Tensor:
         return Tensor._make(self.data.reshape(*shape), (self,), "reshape", lambda g: self._accumulate(g.reshape(self.data.shape)))
 
     def transpose(self, *axes: int) -> Tensor:
-        """Permute axes (`transpose(0, 2, 1, 3)`); with no arguments, swap the last two."""
+        """Permute axes (`transpose(0, 2, 1, 3)` or `transpose((0, 2, 1, 3))`); with no arguments, swap
+        the last two (a 0-d or 1-d tensor is its own transpose, as in numpy)."""
+        if len(axes) == 1 and isinstance(axes[0], (tuple, list)):
+            axes = tuple(axes[0])
+        if not axes and self.ndim < 2:
+            axes = tuple(range(self.ndim))
         perm = axes or tuple(range(self.ndim - 2)) + (self.ndim - 1, self.ndim - 2)
         inverse = np.argsort(perm)
         return Tensor._make(self.data.transpose(perm), (self,), "transpose", lambda g: self._accumulate(g.transpose(inverse)))

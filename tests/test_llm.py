@@ -94,6 +94,18 @@ def test_unexpected_shape_is_an_error(server):
         OpenAICompatible(server.url, "m").chat([])
 
 
+def test_a_non_json_body_is_an_llm_error(server):
+    server.replies.append((200, "<html>gateway</html>"))
+    with pytest.raises(LLMError, match="not JSON"):
+        OpenAICompatible(server.url, "m").chat([])
+
+
+def test_temperature_can_be_left_out(server):
+    server.replies.append((200, reply("ok")))
+    OpenAICompatible(server.url, "m").chat([], temperature=None)
+    assert "temperature" not in server.requests[0]["body"]
+
+
 def test_unreachable_endpoint():
     with pytest.raises(LLMError, match="could not reach"):
         OpenAICompatible("http://127.0.0.1:9", "m", retries=0, timeout=2).chat([])

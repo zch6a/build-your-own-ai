@@ -77,7 +77,11 @@ searches once                  98% · 2.0      98% · 2.0     90% · 2.9     84%
 one call per turn             100% · 2.0     100% · 3.0    100% · 4.1    100% · 3.3
 ```
 
-(success rate · model turns per task, 199 tasks.) Searching once fails on 16% of the "age" tasks, and
+(success rate · model turns per task, 199 tasks.) Grading is strict, and had to be made so: the first
+grader counted an answer correct if the expected town appeared in it — and every comparison answer,
+even "I could not find the population of X, Y", names both towns. A planner that never searched scored
+100% on comparisons. Now a refusal is always wrong, numbers must match whole, and a comparison must
+*choose* the right town; a test checks that the never-searching planner scores zero. Searching once fails on 16% of the "age" tasks, and
 trying the other wording ("first houses built" for "founded") does not help. Looking at a failure shows
 why: for "Mirvoldale founded", the chunk that says "It was founded in 1375" is long, and BM25's length
 penalty ranks a short chunk that merely names Mirvoldale above it — chapter 6's retriever doing exactly

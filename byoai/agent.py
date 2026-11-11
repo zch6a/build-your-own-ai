@@ -85,11 +85,20 @@ def validate(args: object, schema: dict) -> str | None:
     for name, value in args.items():
         expected = props.get(name, {}).get("type")
         ok = isinstance(value, checks[expected]) if expected in checks else True
+        if expected == "integer" and isinstance(value, float) and value.is_integer():
+            ok = True  # JSON Schema: 3.0 is an integer (and models write it)
         if expected in ("integer", "number") and isinstance(value, bool):
             ok = False  # True is an int in Python, not a number in JSON
         if not ok:
-            return f"argument {name!r} must be a {expected}, got {type(value).__name__}"
+            article = "an" if expected[0] in "aeiou" else "a"
+            return f"argument {name!r} must be {article} {expected}, got {type(value).__name__}"
     return None
+
+
+def coerce(args: dict, schema: dict) -> dict:
+    """After `validate`: whole floats for integer parameters become ints, so the tool gets `3`, not `3.0`."""
+    props = schema.get("properties", {})
+    return {k: int(v) if props.get(k, {}).get("type") == "integer" and isinstance(v, float) else v for k, v in args.items()}
 
 
 # ---- the loop ---------------------------------------------------------------------------------------------
@@ -161,6 +170,7 @@ class Agent:
         problem = validate(args, self.tools[name].parameters)
         if problem:
             return f"error: {problem}", True
+        args = coerce(args, self.tools[name].parameters)
         key = name + json.dumps(args, sort_keys=True)
         if key in seen:
             return "error: you already made exactly this call; its result is above. Use it, or try something different.", True
@@ -199,7 +209,15 @@ def safe_eval(expression: str) -> float | int:
 
     if len(expression) > 200:
         raise ValueError("expression too long")
-    return walk(ast.parse(expression.replace(",", ""), mode="eval"))
+    # Only thousands separators are removed ("25,700"); any other comma is an error, not something to
+    # delete: "(1,2)" is not 12, and "1,5" may be a European 1.5.
+    expression = re.sub(r"(?<=\d),(?=\d{3}(?!\d))", "", expression)
+    if "," in expression:
+        raise ValueError("unexpected comma (thousands separators like 25,700 are fine)")
+    result = walk(ast.parse(expression, mode="eval"))
+    if isinstance(result, complex):
+        raise ValueError("the result is not a real number")
+    return result
 
 
 def sandboxed_reader(root: str | Path, max_bytes: int = 20_000) -> Tool:

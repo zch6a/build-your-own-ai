@@ -185,6 +185,8 @@ def evaluate_retrieval(retriever: Retriever, chunks: list[Chunk], questions: lis
     * MRR: the mean of 1/rank of the first relevant chunk (0 if none in the top k) — rewards ranking it
       high, not just somewhere.
     """
+    if not questions:
+        raise ValueError("no questions to evaluate on")
     hit1 = hitk = rr = 0.0
     for q in questions:
         for rank, (i, _) in enumerate(retriever.search(q["question"], k), start=1):
@@ -216,8 +218,11 @@ class SentenceReader:
 
     Two rules, both things a careful reader does:
 
-    * **Stay on topic.** The names in the question (capitalized words after the first) must appear in
-      the passage. A passage about another town is not evidence, however well its words match.
+    * **Stay on topic.** The names in the question must appear in the passage. A passage about another
+      town is not evidence, however well its words match. Names are the known document titles found in
+      the question, in any case ("nustorford" too), plus capitalized words after the first. (The first
+      version used capitalization alone: lowercase questions silently turned the rule off and the
+      reader went from 0% to 61% wrong answers — found by an independent review.)
     * **Match on the rest.** Among those passages' sentences, take the one sharing the most question
       words (weighted by idf), not counting the names — "It was founded in 1690." does not repeat the
       town, and should not lose to a sentence that merely does.
@@ -232,7 +237,8 @@ class SentenceReader:
 
     QUESTION_WORDS = {"who", "what", "which", "when", "where", "why", "how", "many", "much", "does", "do", "did", "is", "are", "was", "the", "a", "an", "of", "in", "on", "for"}
 
-    def __init__(self, texts: list[str], min_score: float = 1.0):
+    def __init__(self, texts: list[str], min_score: float = 1.0, names: list[str] = ()):
+        self.known_names = {w for n in names for w in words(n)}
         all_sentences = [set(words(s)) for t in texts for s in sentences(t)]
         df = Counter(w for s in all_sentences for w in s)
         self.idf = {w: math.log(len(all_sentences) / f) for w, f in df.items()}
@@ -242,8 +248,9 @@ class SentenceReader:
         """`titles`, if known, are the passages' document titles: then a passage must be *about* the
         names in the question (its title names one), not merely mention them — "The nearest town is
         Nustorford." in the article on Tamgalwick says nothing about Nustorford's mayor."""
-        names = {w.lower() for w in re.findall(r"\b[A-Z][a-z]+", question)[1:]}
-        q = set(words(question)) - names - self.QUESTION_WORDS
+        asked = set(words(question))
+        names = (asked & self.known_names) | {w.lower() for w in re.findall(r"\b[A-Z][a-z]+", question)[1:]}
+        q = set(asked) - names - self.QUESTION_WORDS
         best, best_score, source = "I don't know.", self.min_score, None
         for n, passage in enumerate(passages, start=1):
             if not names <= set(words(passage)):
@@ -263,7 +270,7 @@ class RAG:
 
     def __init__(self, chunks: list[Chunk], retriever: Retriever, k: int = 4, llm=None):
         self.chunks, self.retriever, self.k, self.llm = chunks, retriever, k, llm
-        self.reader = SentenceReader([c.text for c in chunks])
+        self.reader = SentenceReader([c.text for c in chunks], names=sorted({c.title for c in chunks}))
 
     def ask(self, question: str) -> dict:
         hits = self.retriever.search(question, self.k)

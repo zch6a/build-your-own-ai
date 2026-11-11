@@ -51,6 +51,22 @@ def test_any_text_round_trips(tok: Tokenizer, seed: int):
     assert tok.decode(tok.encode(text)) == text
 
 
+@pytest.mark.parametrize("seed", range(20))
+def test_pretokenizer_loses_nothing(seed: int):
+    # Every character must land in some chunk. `_` is a regex "word" character that is neither a
+    # letter nor a digit, and once fell through every branch; superscripts, roman numerals, combining
+    # marks and other scripts are the next places to look.
+    r = random.Random(seed)
+    alphabet = "a_b __init__ x1_2 ²³ Ⅷ ٣ é" + chr(0x301) + chr(0x200D) + " 中_文 ' 's -_- \t\n"
+    text = "".join(r.choice(alphabet) for _ in range(r.randint(0, 120)))
+    assert "".join(PRETOKENIZE.findall(text)) == text
+
+
+def test_underscores_round_trip(tok: Tokenizer):
+    for text in ("snake_case_name", "__init__", "search_towns(read_file)", "_"):
+        assert tok.decode(tok.encode(text)) == text
+
+
 def test_ids_stay_in_the_vocabulary(tok: Tokenizer):
     ids = tok.encode(stories(20, seed=9) + "😀 中文")
     assert all(0 <= i < tok.vocab_size for i in ids)

@@ -1,6 +1,6 @@
 """Chapter 3, the longer run: watch the model learn to copy — suddenly, after a plateau.
 
-    uv run python chapters/03-gpt/longer.py        # about 10 minutes on a laptop CPU
+    uv run python chapters/03-gpt/longer.py        # about 15 minutes on a laptop CPU
 
 Every 250 steps it measures the held-out loss and how often a generated story's second sentence names
 the animal of its first ("with a fox. It was windy and the fox was..."). A random pick among the 10

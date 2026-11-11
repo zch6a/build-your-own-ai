@@ -16,9 +16,28 @@ Most explanations of how LLM systems work stop at a diagram, or start with `pip 
 being explained. Here each piece is written out — a few hundred lines of Python, with tests that pin
 down what it must do and a demo you can run in seconds — so you can read it, change it, and break it.
 
-The chapters build on each other: the tokenizer from chapter 1 feeds the GPT of chapter 3, the GPT's
-sampling loop is chapter 4, its embeddings fill the vector database of chapter 5, and so on up to an
-agent that calls tools over a Model Context Protocol connection you also wrote.
+The chapters build on each other: the tokenizer from chapter 1 feeds the GPT of chapter 3, trained with
+the autograd of chapter 2; chapter 4 makes it generate fast; chapter 5's index serves chapter 6's
+retrieval; chapter 7's agent calls retrieval as a tool; and chapter 8 serves those tools over the
+Model Context Protocol to any client — including chapter 7's agent.
+
+## What you will see
+
+Every number in the walkthroughs comes from running the code, and some of them are surprising:
+
+- **A phase change on a laptop.** The 3-layer GPT sits on a loss plateau, keeping the story's animal no
+  better than chance — then within a few hundred steps learns to copy it (19% → 70%), the
+  "induction head" jump seen in large models. ([chapter 3](chapters/03-gpt/README.md))
+- **What an embedding holds.** Searching with the GPT's hidden states finds sentences of the same
+  *shape*, not the same topic: "the owl and the key" returns "It was cold and the cat was tired".
+  ([chapter 5](chapters/05-vectordb/README.md))
+- **One line that doubles retrieval.** Putting the document title on each chunk takes hit@5 from 0.38 to
+  0.74 for small chunks. ([chapter 6](chapters/06-rag/README.md))
+- **0% wrong answers.** A reader that must cite an on-topic passage or say "I don't know" — and why a
+  passage that *mentions* a name is not one *about* it. ([chapter 6](chapters/06-rag/README.md))
+- **Errors are information.** With 30% of a model's tool calls broken, an agent that feeds the errors
+  back succeeds 99% of the time; one that stops at the first error, 54%.
+  ([chapter 7](chapters/07-agent/README.md))
 
 ## Chapters
 
@@ -42,6 +61,21 @@ uv run pytest                                  # every chapter's tests
 uv run python chapters/01-tokenizer/run.py     # a chapter's demo
 ```
 
+Without uv: `pip install -e . pytest` in a virtual environment, then `python -m pytest` and
+`python chapters/01-tokenizer/run.py`.
+
+Demos take seconds, except that the first one from chapter 3 on trains the shared story model —
+about two minutes on a laptop CPU, once; it is cached in `checkpoints/` (or `$BYOAI_CHECKPOINTS`).
+
+**A real model, optionally.** Chapters 6 and 7 run offline with stand-ins. To also try them with any
+OpenAI-compatible endpoint (DeepSeek, OpenAI, a local server), set `BYOAI_LLM_BASE_URL`,
+`BYOAI_LLM_MODEL` and `BYOAI_LLM_API_KEY` — see [`byoai/llm.py`](byoai/llm.py). Nothing is sent
+anywhere unless `BYOAI_LLM_BASE_URL` is set.
+
+**The tools in your own agent.** `uv run python -m byoai.mcp` is a working MCP server (stdio) offering
+the chapter-7 tools; add it to Claude Code with
+`claude mcp add towns -- uv run --directory /path/to/build-your-own-ai python -m byoai.mcp`.
+
 ## Principles
 
 - **From scratch, but not toy.** Each module does the real thing at small scale — byte-level BPE as
@@ -50,7 +84,11 @@ uv run python chapters/01-tokenizer/run.py     # a chapter's demo
   [`byoai/corpus.py`](byoai/corpus.py) from a seed, so every machine sees the same text and there is
   nothing to download or license.
 - **Tested.** The tests are part of the explanation: they state what each piece must guarantee
-  (lossless round trips, special tokens that cannot be injected, deterministic training).
+  (lossless round trips, special tokens that cannot be injected, deterministic training, sandboxes
+  that do not leak).
+- **Measured, then described.** Every number in the walkthroughs was produced by running the code; when
+  a result differed from the expectation (when the phase change happens, LSA's "better" recall), the
+  text says what actually happened and why.
 
 ## License
 

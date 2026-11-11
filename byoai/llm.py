@@ -49,8 +49,11 @@ class OpenAICompatible:
         key = os.environ.get("BYOAI_LLM_API_KEY") or os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("OPENAI_API_KEY")
         return cls(base, model, key)
 
-    def chat(self, messages: list[dict], tools: list[dict] | None = None, temperature: float = 0.0) -> dict:
-        body: dict = {"model": self.model, "messages": messages, "temperature": temperature}
+    def chat(self, messages: list[dict], tools: list[dict] | None = None, temperature: float | None = 0.0) -> dict:
+        """`temperature=None` leaves it out (some reasoning models accept only their default)."""
+        body: dict = {"model": self.model, "messages": messages}
+        if temperature is not None:
+            body["temperature"] = temperature
         if tools:
             body["tools"] = [{"type": "function", "function": t} for t in tools]
         data = self._post(body)
@@ -77,7 +80,12 @@ class OpenAICompatible:
             request = urllib.request.Request(self.url, data=payload, headers=headers, method="POST")
             try:
                 with urllib.request.urlopen(request, timeout=self.timeout) as response:
-                    return json.loads(response.read())
+                    raw = response.read()
+                try:
+                    return json.loads(raw)
+                except json.JSONDecodeError:
+                    # A proxy or gateway answering 200 with an HTML page, say.
+                    raise LLMError(f"{self.url} answered with something that is not JSON: {raw[:200]!r}") from None
             except urllib.error.HTTPError as e:
                 detail = e.read()[:300].decode(errors="replace")
                 # 429 (rate limit) and 5xx are worth another try; 4xx (bad key, bad request) are not.

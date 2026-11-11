@@ -141,3 +141,22 @@ def test_float32_stays_float32():
     y = (x @ Tensor(np.ones((3, 4), dtype=np.float32))).gelu().sum()
     y.backward()
     assert x.data.dtype == np.float32 and x.grad.dtype == np.float32
+
+
+def test_backward_twice_on_one_graph_is_refused_but_leaves_accumulate():
+    x = Tensor([2.0], requires_grad=True)
+    z = (x * x).sum()
+    z.backward()
+    with pytest.raises(RuntimeError, match="already ran"):
+        z.backward()
+    (x * x).sum().backward()  # a new forward pass: the leaf accumulates, 4 + 4
+    assert x.grad.tolist() == [8.0]
+
+
+def test_transpose_variants():
+    x = Tensor(np.arange(6.0).reshape(1, 2, 3), requires_grad=True)
+    assert x.transpose((0, 2, 1)).data.shape == (1, 3, 2) == x.transpose(0, 2, 1).data.shape
+    v = Tensor(np.arange(3.0), requires_grad=True)
+    assert np.array_equal(v.T.data, v.data)
+    (v.T * v).sum().backward()
+    assert np.array_equal(v.grad, 2 * v.data)

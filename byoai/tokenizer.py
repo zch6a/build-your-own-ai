@@ -32,8 +32,11 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 # Word-like chunks: contractions, letters (with one leading space), up to 3 digits, punctuation runs,
-# and whitespace. `[^\W\d_]` is "a letter" in any script (Python's `re` has no `\p{L}`).
-PRETOKENIZE = re.compile(r"""'(?:[sdmt]|ll|ve|re)| ?[^\W\d_]+| ?\d{1,3}| ?[^\s\w]+|\s+(?!\S)|\s+""")
+# and whitespace. `[^\W\d_]` is "a letter" in any script (Python's `re` has no `\p{L}`). The underscore
+# is a "word" character to `re` but neither a letter nor a digit, so it must be named in the punctuation
+# branch — without it, `snake_case` silently lost its underscores (a reviewer found it; a test now
+# checks that the chunks always join back to the input).
+PRETOKENIZE = re.compile(r"""'(?:[sdmt]|ll|ve|re)| ?[^\W\d_]+| ?\d{1,3}| ?(?:[^\s\w]|_)+|\s+(?!\S)|\s+""")
 
 Pair = tuple[int, int]
 
@@ -112,8 +115,10 @@ class Tokenizer:
 
     # ---- encoding ------------------------------------------------------------------------------
     def encode(self, text: str, allowed_special: str | set[str] = "none") -> list[int]:
-        """Text to ids. Special tokens are only recognised if allowed (`"all"`, or a set of them)."""
-        allowed = set(self.special) if allowed_special == "all" else (allowed_special if isinstance(allowed_special, set) else set())
+        """Text to ids. Special tokens are only recognised if allowed (`"all"`, or a collection of them)."""
+        if isinstance(allowed_special, str) and allowed_special not in ("all", "none"):
+            raise ValueError(f"allowed_special must be \"all\", \"none\" or a collection of tokens, not {allowed_special!r}")
+        allowed = set(self.special) if allowed_special == "all" else (set() if allowed_special == "none" else set(allowed_special))
         ids: list[int] = []
         if not allowed or not self._special_re:
             return self._encode_ordinary(text)
