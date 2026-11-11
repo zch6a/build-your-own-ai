@@ -7,6 +7,7 @@ Uses the story model from chapter 3 (trained on first use, then loaded from chec
 
 from __future__ import annotations
 
+import sys
 import time
 
 import numpy as np
@@ -14,6 +15,9 @@ import numpy as np
 from byoai.corpus import stories
 from byoai.generate import Engine
 from byoai.zoo import EOT, story_model
+
+# Print UTF-8 even when the output is piped or redirected (Windows would otherwise use its legacy code page).
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 model, tok = story_model(verbose=True)
 engine = Engine(model)

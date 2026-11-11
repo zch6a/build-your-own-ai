@@ -8,12 +8,16 @@ are set (see byoai/llm.py), in which case part 4 also runs 12 tasks with that mo
 
 from __future__ import annotations
 
+import sys
 import json
 
 from byoai.agent import Agent
 from byoai.corpus import knowledge_base
 from byoai.llm import OpenAICompatible
 from byoai.planner import Noisy, TownPlanner, agent_tasks, is_correct, town_tools
+
+# Print UTF-8 even when the output is piped or redirected (Windows would otherwise use its legacy code page).
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 documents, questions = knowledge_base()
 tasks = agent_tasks(documents, questions, 200)

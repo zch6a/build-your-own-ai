@@ -163,13 +163,14 @@ for line in sys.stdin:
 
 
 def test_server_requests_with_a_colliding_id_are_not_mistaken_for_replies():
-    with MCPClient([sys.executable, "-c", TRICKY_SERVER], timeout=10) as client:
+    with MCPClient([sys.executable, "-c", TRICKY_SERVER], timeout=30) as client:
         result = client.request("tools/call", {"name": "x", "arguments": {}})
         assert result["content"][0]["text"] == "pong was {}"
 
 
 def test_a_timeout_after_the_handshake_and_close_reaps_the_server():
-    client = MCPClient([sys.executable, "-c", TRICKY_SERVER], timeout=1)
+    client = MCPClient([sys.executable, "-c", TRICKY_SERVER], timeout=30)  # a slow machine may take a while to start Python
+    client.timeout = 1
     with pytest.raises(TimeoutError, match="hang"):
         client.request("hang")
     client.close()

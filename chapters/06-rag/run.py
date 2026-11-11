@@ -8,9 +8,14 @@ answers 30 questions with that model. Without them nothing leaves your machine.
 
 from __future__ import annotations
 
+import sys
+
 from byoai.corpus import knowledge_base
 from byoai.llm import OpenAICompatible
 from byoai.rag import BM25, LSA, RAG, Hybrid, chunk_documents, evaluate_retrieval
+
+# Print UTF-8 even when the output is piped or redirected (Windows would otherwise use its legacy code page).
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 IDK = "I don't know."
 documents, questions = knowledge_base()

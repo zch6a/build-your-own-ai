@@ -236,8 +236,8 @@ class HNSWIndex:
 
 def clustered_vectors(n: int, dim: int, clusters: int = 20, latent: int = 8, seed: int = 0) -> np.ndarray:
     """Synthetic vectors shaped like real embeddings: in clusters, on a curved low-dimensional surface
-    (`latent` dimensions mapped into `dim`). Pure random noise in many dimensions is the hardest case
-    for any approximate index — and nothing like what a model produces."""
+    (`latent` dimensions mapped into `dim`). Random Gaussian vectors are nothing like what a model
+    produces (and cost HNSW two to three times the work for the same recall)."""
     r = np.random.default_rng(seed)
     centers = r.standard_normal((clusters, latent))
     points = centers[r.integers(0, clusters, n)] + 0.35 * r.standard_normal((n, latent))

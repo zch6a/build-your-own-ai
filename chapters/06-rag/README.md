@@ -151,12 +151,15 @@ not switch it on.
 
 ## Exercises
 
-1. Set `overlap=0`. Which question types lose hits, and why those?
+1. Set `overlap=0`. Compare hit@1 and hit@5, per question type (`q["field"]`). Which measure moves,
+   and which facts lose — and why does it matter less here than with facts that span sentences?
 2. Remove the title header but prepend the first sentence of the article to each chunk instead. How
    close to the title does that get?
 3. Make a question set with paraphrased questions ("Who runs Nustorford?", "What does Nustorford
    make?"). Which retriever degrades least? Which reader?
-4. Add a typo ("Nustorferd"). BM25 and LSA both fail; add character trigrams as extra "words" and fuse.
+4. Add a typo ("Nustorferd"). BM25 and LSA both fail. Add character trigrams of each word to BM25's
+   vocabulary and measure again. Then try fusing the trigram retriever with plain BM25 by reciprocal
+   rank fusion instead: why does that do *worse* than trigrams alone?
 5. With a real model configured, remove the "say I don't know" instruction and ask about a town that
    does not exist in the knowledge base. What does it say?
 

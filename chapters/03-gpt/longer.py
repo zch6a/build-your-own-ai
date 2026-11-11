@@ -9,6 +9,7 @@ animals would match 10% of the time.
 
 from __future__ import annotations
 
+import sys
 import re
 import time
 
@@ -18,6 +19,9 @@ from byoai.corpus import _ANIMALS
 from byoai.generate import Engine
 from byoai.gpt import GPT, GPTConfig, evaluate, train
 from byoai.zoo import CONFIG, story_ids, story_tokenizer
+
+# Print UTF-8 even when the output is piped or redirected (Windows would otherwise use its legacy code page).
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 tok = story_tokenizer()
 data = story_ids(tok)
@@ -39,14 +43,15 @@ def animal_kept(model: GPT, n: int = 100) -> float:
     return kept / max(counted, 1)
 
 
-model = GPT(GPTConfig(vocab_size=tok.vocab_size, **CONFIG))
+SEED = 0  # change it to see the jump come at a different step
+model = GPT(GPTConfig(vocab_size=tok.vocab_size, **CONFIG), seed=SEED)
 steps, every = 2500, 250
 print(f"training {steps} steps; every {every}: held-out loss, and how often the animal is kept (chance: 10%)")
 t0 = time.perf_counter()
 done = 0
 while done < steps:
     # One schedule over the whole run would be the usual choice; chunks keep the measurements in between.
-    train(model, data, steps=every, batch_size=32, lr=3e-3 if done == 0 else 1.5e-3, warmup=50 if done == 0 else 0, seed=done)
+    train(model, data, steps=every, batch_size=32, lr=3e-3 if done == 0 else 1.5e-3, warmup=50 if done == 0 else 0, seed=SEED * 100_000 + done)
     done += every
     loss, kept = evaluate(model, held_out), animal_kept(model)
     print(f"  step {done:>5}: loss {loss:.3f}   animal kept {kept:4.0%}  {'#' * round(kept * 40)}   ({time.perf_counter() - t0:.0f} s)", flush=True)

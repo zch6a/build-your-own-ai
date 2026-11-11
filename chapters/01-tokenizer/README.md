@@ -87,8 +87,10 @@ for wi in list(where.pop(best, ())):     # only the words that contain the pair
 
 ## Exercises
 
-1. Change the pre-tokenization pattern so digits are split one by one. What happens to the
-   compression of `"in 2024 and 2025"`? (Some modern tokenizers do exactly this, for arithmetic.)
+1. Change the pre-tokenization pattern so digits are split one by one. The stories contain no digits,
+   so train on the town articles instead (`" ".join(d["text"] for d in knowledge_base()[0])`, from
+   `byoai.corpus`) and encode `"About 25,700 people live in Kelby. It was founded in 1690."`. How many
+   more tokens? (Some modern tokenizers split digits one by one on purpose, for arithmetic.)
 2. Train on `stories(2000)` and encode a sentence of plain English prose that is *not* about these
    stories. Which words fall apart into small pieces?
 3. Write `encode` without the cache. How much slower is encoding the training text?

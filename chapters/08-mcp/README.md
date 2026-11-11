@@ -124,7 +124,8 @@ subprocess; it has not been tested against every client.
 ## Exercises
 
 1. Add `ping` handling to the client: send one every few seconds while idle, and treat a missing reply as
-   a dead server.
+   a dead server. Careful: `request()` is not thread-safe — two threads reading the one reply queue
+   each throw away the other's reply. Add a lock around it, or one reader that routes replies by `id`.
 2. Implement `resources/list` and `resources/read` on the server, offering the 60 articles as resources
    with `town://Nustorford` URIs. What is the difference between a resource and a tool that returns
    the same text, from the model's point of view?

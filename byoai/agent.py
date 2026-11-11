@@ -118,7 +118,7 @@ class Result:
     steps: int  # model turns
     calls: list[Step] = field(default_factory=list)
     messages: list[dict] = field(default_factory=list)
-    stopped: str = "answered"  # or "max_steps", "error"
+    stopped: str = "answered"  # or "max_steps", "repeating", "error"
 
 
 class Agent:
@@ -128,22 +128,25 @@ class Agent:
       schema, an exception inside the tool — goes back to the model as the tool's result, starting
       with "error:". The model can fix its call; a crashed loop cannot.
     * `max_steps` bounds the number of model turns: a confused model must not spin forever on your bill.
-    * The same call repeated (same tool, same arguments) is answered with a reminder, not run again.
+    * The same call repeated (same tool, same arguments) is answered with a reminder, not run again;
+      after `max_repeats` such repeats the run stops — a model that keeps asking the same thing is stuck.
     * Tool results are cut to `max_result_chars`: whatever a tool returns is read by the model on every
       later turn.
     * `feedback=False` is the naive loop, for comparison: the first failed call ends the run.
     """
 
-    def __init__(self, model, tools: list[Tool], system: str = "You are a helpful assistant. Use the tools when you need facts or arithmetic.", max_steps: int = 8, max_result_chars: int = 2000, feedback: bool = True):
+    def __init__(self, model, tools: list[Tool], system: str = "You are a helpful assistant. Use the tools when you need facts or arithmetic.", max_steps: int = 8, max_result_chars: int = 2000, feedback: bool = True, max_repeats: int = 2):
         self.model, self.system = model, system
         self.tools = {t.name: t for t in tools}
         self.max_steps, self.max_result_chars, self.feedback = max_steps, max_result_chars, feedback
+        self.max_repeats = max_repeats
 
     def run(self, task: str) -> Result:
         messages = [{"role": "system", "content": self.system}, {"role": "user", "content": task}]
         schemas = [t.schema for t in self.tools.values()]
         calls: list[Step] = []
         seen: set[str] = set()
+        repeats = 0
         for step in range(1, self.max_steps + 1):
             reply = self.model.chat(messages, tools=schemas)
             if not reply.get("tool_calls"):
@@ -159,6 +162,10 @@ class Agent:
                 messages.append({"role": "tool", "tool_call_id": call["id"], "content": result})
                 if error and not self.feedback:
                     return Result(f"failed: {result}", step, calls, messages, "error")
+                if result.startswith("error: you already made exactly this call"):
+                    repeats += 1
+                    if repeats >= self.max_repeats:
+                        return Result("Stopped: the model kept repeating the same call.", step, calls, messages, "repeating")
         return Result("I could not finish within the step limit.", self.max_steps, calls, messages, "max_steps")
 
     def _execute(self, call: dict, seen: set[str]) -> tuple[str, bool]:

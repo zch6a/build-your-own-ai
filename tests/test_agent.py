@@ -116,6 +116,12 @@ def test_repeated_calls_are_not_rerun():
     assert runs == [1] and "already made exactly this call" in result.calls[1].result
 
 
+def test_a_stuck_model_is_stopped_early():
+    llm = ScriptedLLM([{"tool_calls": [call("add", {"a": 1}, id=f"c{i}")]} for i in range(10)])
+    result = Agent(llm, [add], max_steps=8).run("?")
+    assert result.stopped == "repeating" and result.steps == 3 and len(llm.requests) == 3
+
+
 def test_long_results_are_cut():
     @tool
     def big() -> str:

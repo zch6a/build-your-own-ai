@@ -5,12 +5,16 @@
 
 from __future__ import annotations
 
+import sys
 import math
 import time
 
 import numpy as np
 
 from byoai.autograd import Adam, Tensor, gradcheck
+
+# Print UTF-8 even when the output is piped or redirected (Windows would otherwise use its legacy code page).
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 # ---- 1. One neuron: compare with the derivative worked out by hand ---------------------------------------
 w, x, b = Tensor(0.5, requires_grad=True), Tensor(2.0, requires_grad=True), Tensor(-0.3, requires_grad=True)

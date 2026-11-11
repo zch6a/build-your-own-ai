@@ -67,7 +67,7 @@ class Tokenizer:
 
         Each distinct chunk is a word with a count; a pair's frequency is the sum over the words it
         occurs in. Ties go to the smallest pair, so training is deterministic. Training stops early when
-        there is nothing left to merge — every chunk is a single token — so ocab_size is an upper bound.
+        there is nothing left to merge — every chunk is a single token — so `vocab_size` is an upper bound.
         """
         special = special or []
         n_merges = vocab_size - 256 - len(special)

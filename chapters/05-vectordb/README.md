@@ -53,6 +53,9 @@ while candidates:
 Inserting is searching: find the new vector's nearest nodes on each of its layers, link to them in
 both directions, and if a neighbour now has too many links (more than M, or 2·M on layer 0), prune it.
 
+How good is an approximate answer? **Recall@10**: of the true 10 nearest neighbours (found by
+`FlatIndex`), the share that HNSW returned. 0.9 means it found 9 of the 10, on average over the queries.
+
 ## Which links to keep
 
 The obvious rule — keep the M nearest — is not the one HNSW uses. In clustered data the M nearest are
@@ -71,18 +74,29 @@ Same number of links, same search: 20 points of recall from choosing them well. 
 computed each candidate pair's distance with its own numpy call; building took 38 s for 3,000 vectors.
 Computing all pairwise distances in one product and looping over plain floats brought it to 10.)
 
-## The test data has to look like real data
+## Random vectors are the wrong test data
 
-The first recall test used random Gaussian vectors in 32 dimensions and got 0.87. Pure noise in many
-dimensions is the hardest case there is for any approximate index: every point is nearly the same
-distance from every other, so there is no structure to navigate by. Real embeddings are nothing like
-that — they lie in clusters on a low-dimensional surface. `clustered_vectors` makes that kind of data
-(an 8-dimensional latent space, curved into 32 dimensions by a `tanh`), and the test asserts what
-matters on it. Weakening the assertion until noise passed would have tested nothing.
+The obvious test data — random Gaussian vectors — is nothing like what a model produces. Real
+embeddings lie in clusters on a low-dimensional surface; random vectors in 32 dimensions fill the
+space evenly, and every point is nearly the same distance from every other. `clustered_vectors` makes
+the realistic kind (an 8-dimensional latent space, curved into 32 dimensions by a `tanh`), and the tests
+use it. What does random data do to HNSW? Measured on 3,000 vectors, 100 queries:
 
-Recall@10 is still a strict measure here: the 10th and 11th true neighbours typically differ by 0.003
+```text
+               ef=16                        ef=64
+clustered      recall 0.845,  181 distances  recall 0.929,  343 distances
+random         recall 0.836,  404 distances  recall 0.993, 1019 distances
+```
+
+Not what this chapter's first draft claimed ("noise is the hardest case, recall collapses"). Recall
+holds up — but the search does two to three times the work for it: with no structure to follow, the
+beam wanders before it settles. At the same work (about 400 distances), clustered data gets 0.93 and
+random data 0.84. An index tuned on random vectors would look slow and over-provisioned; one tested
+only on random vectors would never meet the clustered, uneven data where the neighbour heuristic
+above earns its keep.
+
+Recall@10 is a strict measure on both: the 10th and 11th true neighbours typically differ by 0.002–0.004
 in cosine, and finding the 11th instead counts as a miss.
-
 ## What the demo shows
 
 How much work a search does as the collection grows:
@@ -154,8 +168,9 @@ exact facts is hard to beat.
 1. Set `M=4` and `M=32`. How do recall, build time and memory (count the links) change?
 2. Delete half the vectors (`delete` marks them; they still route searches). What happens to recall
    and to the work per query? When would you rebuild?
-3. Replace `clustered_vectors` in the demo with `np.random.standard_normal`. Watch recall at `ef=64`
-   fall, and explain why with the 10th-vs-11th-neighbour gap.
+3. Replace `clustered_vectors(n, DIM, seed=s)` in the demo with
+   `np.random.default_rng(s).standard_normal((n, DIM))`. Compare recall *and* distance computations per
+   query at the same `ef`. Where does the extra work go?
 4. Make the model embedding better without training: use only the hidden state at the animal's
    position, or average only over nouns. How close to the bag of words can you get?
 5. Add product quantization: split each vector into 8 pieces, replace each piece by the nearest of

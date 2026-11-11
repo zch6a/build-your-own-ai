@@ -7,6 +7,7 @@ Part 4 uses the story model from chapter 3 (trained on first use, then loaded fr
 
 from __future__ import annotations
 
+import sys
 import re
 import time
 from collections import Counter
@@ -17,6 +18,9 @@ from byoai.corpus import stories
 from byoai.generate import Engine
 from byoai.vectordb import FlatIndex, HNSWIndex, clustered_vectors, recall_at_k
 from byoai.zoo import story_model
+
+# Print UTF-8 even when the output is piped or redirected (Windows would otherwise use its legacy code page).
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 DIM = 32
 queries = clustered_vectors(100, DIM, seed=2)

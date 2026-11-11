@@ -24,8 +24,12 @@ Every position gets a prediction, so one forward pass over 64 tokens is 64 train
 ## Embeddings: "which token" + "where"
 
 The model starts by looking up a learned vector for each token (`wte`) and a learned vector for each
-position (`wpe`), and adds them. Attention itself has no notion of order — it is a weighted sum over a
-set — so without the position vector, "Mia gave Leo" and "Leo gave Mia" would look the same.
+position (`wpe`), and adds them. Attention by itself has no notion of order — it is a weighted sum over
+a set — which is the usual reason given for position vectors. In a model with a causal mask, though,
+order leaks in anyway: position 3 can see three tokens and position 30 thirty, and the network can learn
+to tell them apart. Measured here: with `wpe` replaced by zeros, the held-out loss after 500 steps is the
+same 0.620. Position embeddings make the job easier at scale, and models without a mask (encoders like
+BERT) cannot do without them — but "the model would not know the order" is not true of this one.
 
 ## Attention: every position asks a question
 
@@ -64,8 +68,11 @@ write into the residual stream scaled down by √(2·layers), so the stream does
 
 The final layer turns a vector into a score per token: a `(C, vocab)` matrix. GPT-2 uses the
 transpose of the embedding table for it. The vector that represents a token on the way in is the same
-one that predicts it on the way out — fewer parameters, better training, and a token that is only ever
-a *target* still trains its embedding (there is a test for exactly that).
+one that predicts it on the way out — 49,920 fewer parameters here (an untied model would have 11% more), and a token that
+is only ever a *target* still trains its embedding (there is a test for exactly that). It is not free
+quality, though: with an untied output matrix this small model reaches held-out loss 0.52 after the
+same 500 steps instead of 0.62 (one run, measured). Tying saves memory, which matters for large
+vocabularies; at this size the extra matrix buys more than it costs.
 
 ## Training
 
@@ -74,7 +81,9 @@ AdamW with β₂ = 0.95 and weight decay 0.1, a learning rate that warms up for 
 a cosine down to a tenth of its peak, and the gradient's overall norm clipped to 1 so that one odd
 batch cannot throw the weights far.
 
-The loss starts at ln 520 ≈ 6.25 — the model guesses uniformly over the vocabulary — and falls below
+(Loss is −ln of the probability given to the right next token; see [chapter 2](../02-autograd/README.md).
+The **held-out** loss is measured on stories the model never trained on — the honest number, since a
+model can memorize its training text.) The loss starts at ln 520 ≈ 6.25 — the model guesses uniformly over the vocabulary — and falls below
 1 within about 100 steps.
 
 ## Making it fast enough
@@ -109,7 +118,9 @@ out beforehand: the animal appears about three times in a ~50-token story, so kn
 
 [`longer.py`](longer.py) trains for longer and measures, every 250 steps, how often the second sentence
 of a generated story names the animal of the first (a random pick among the 10 animals: 10%). Two
-runs, with different random batches:
+runs: the first with an earlier version of the experiment (a different training and measuring setup),
+the second with `longer.py` as it is — which reproduces it step for step, since training here is
+deterministic for a given seed and code:
 
 ```text
              first run                       second run
@@ -123,7 +134,8 @@ step  2000: loss 0.550   animal kept  65%    loss 0.523   animal kept 100%
 For a while nothing seems to happen — the loss barely moves and the animal is a coin toss. Then,
 within a few hundred steps, the model starts copying, and the loss drops by 0.05–0.08 towards the
 0.47 the arithmetic predicted. *When* it happens is not fixed: the first run sat on the plateau for
-about a thousand steps, the second jumped at 750 and went on to keep the animal every time. That it
+about a thousand steps, the second jumped at 750 and went on to keep the animal every time. (Change
+`SEED` in `longer.py` to see another timing.) That it
 happens suddenly is the same in both. This jump is what researchers found in real language models when
 they looked for "induction heads": the circuit forms in a short phase change, and in-context learning
 appears with it. It is one reason training curves are watched for a long time before anyone gives up.
@@ -133,12 +145,16 @@ appears with it. It is one reason training curves are watched for a long time be
 
 ## Exercises
 
-1. Remove the position embedding. Train again: what happens to the loss, and to the stories?
+1. Remove the position embedding (replace `wpe` with zeros that are not trained). The loss does not
+   change. Why not — what tells position 0 from position 10? Would the same hold without the causal mask?
 2. Set `n_head=1` with the same width. Does it learn as fast?
 3. Remove the √D scaling and train with `n_embd=256`. Watch the loss.
-4. Untie the output layer (give it its own `(C, vocab)` matrix). How many parameters does that add,
-   and does the held-out loss change?
-5. Run `longer.py` with `n_layer=1`. Copying needs two heads working in sequence — can a one-layer model
+4. Untie the output layer (give it its own `(C, vocab)` matrix). The text above says the loss drops
+   from 0.62 to 0.52; check it, then look at the stories: does the untied model keep the animal from
+   sentence to sentence after only 500 steps?
+5. Run `longer.py` with one layer — edit its `GPTConfig(...)` line to
+   `GPTConfig(vocab_size=tok.vocab_size, **{**CONFIG, "n_layer": 1})` (editing `zoo.CONFIG` instead would
+   retrain the model every later chapter shares). Copying needs two heads working in sequence — can a one-layer model
    still learn it? (Then try `n_layer=2, n_head=1`.)
 
 ## Where real models differ

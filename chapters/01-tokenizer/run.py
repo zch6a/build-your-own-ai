@@ -5,10 +5,14 @@
 
 from __future__ import annotations
 
+import sys
 import time
 
 from byoai.corpus import stories
 from byoai.tokenizer import Tokenizer
+
+# Print UTF-8 even when the output is piped or redirected (Windows would otherwise use its legacy code page).
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 text = stories(2000, seed=0)
 print(f"training text: {len(text):,} characters, {len(text.encode('utf-8')):,} bytes\n")

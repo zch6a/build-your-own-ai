@@ -16,6 +16,20 @@
 
 各章环环相扣：第 1 章的分词器喂给第 3 章的 GPT，GPT 用第 2 章的自动微分训练；第 4 章让它快速生成；第 5 章的索引支撑第 6 章的检索；第 7 章的 Agent 把检索当作工具调用；第 8 章再通过 Model Context Protocol 把这些工具提供给任何客户端——包括第 7 章的 Agent。
 
+```text
+                 corpus.py ── 生成的故事，以及虚构城镇的百科文章
+                     │
+   1 tokenizer.py ───┤  文本 ⇄ token id
+   2 autograd.py  ───┤  梯度
+   3 gpt.py, zoo.py ─┤  Transformer，训练一次后缓存
+   4 generate.py  ───┘  快速生成（KV 缓存）、采样、嵌入
+                            │
+   5 vectordb.py  ──────────┤  精确搜索、HNSW
+   6 rag.py, llm.py ────────┤  切块 → BM25 / LSA / 混合 → 带引用的回答；可选真实模型
+   7 agent.py, planner.py ──┤  调用工具的循环；检索和计算作为工具
+   8 mcp.py ────────────────┘  同样的工具，通过 stdio 提供给任何 MCP 客户端
+```
+
 > 各章的详细讲解目前是英文；下面每章附一段中文要点，数字都来自实际运行。
 
 ## 章节

@@ -21,6 +21,20 @@ the autograd of chapter 2; chapter 4 makes it generate fast; chapter 5's index s
 retrieval; chapter 7's agent calls retrieval as a tool; and chapter 8 serves those tools over the
 Model Context Protocol to any client — including chapter 7's agent.
 
+```text
+                 corpus.py ── generated stories, and articles about invented towns
+                     │
+   1 tokenizer.py ───┤  text ⇄ token ids
+   2 autograd.py  ───┤  gradients
+   3 gpt.py, zoo.py ─┤  a transformer, trained once and cached
+   4 generate.py  ───┘  fast generation (KV cache), sampling, embeddings
+                            │
+   5 vectordb.py  ──────────┤  flat search, HNSW
+   6 rag.py, llm.py ────────┤  chunks → BM25 / LSA / hybrid → cited answers; optional real model
+   7 agent.py, planner.py ──┤  tool-calling loop; retrieval and arithmetic as tools
+   8 mcp.py ────────────────┘  the same tools, served to any MCP client over stdio
+```
+
 ## What you will see
 
 Every number in the walkthroughs comes from running the code, and some of them are surprising:

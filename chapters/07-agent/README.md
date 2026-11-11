@@ -114,7 +114,10 @@ The other guards in `Agent`, each with a test:
   expected.
 * **Exceptions become results.** A tool that raises tells the model `error: RuntimeError: …`; the loop
   does not die.
-* **The same call twice is not re-run**: the model is told to use the result it already has. Stuck
+* **The same call twice is not re-run**: the model is told to use the result it already has, and after
+  two such repeats the run stops (`stopped="repeating"`) instead of spending the rest of the step budget.
+  (The first version only refused to re-run the call, and a stuck model still used all 8 turns — a
+  learner doing exercise 2 noticed.) Stuck
   models repeat themselves; this breaks the loop early and is cheap.
 * **Results are cut** to `max_result_chars`. Every tool result is re-read by the model on every later
   turn — a 50 KB web page in turn 2 is paid for in turns 3 to 8.
@@ -154,9 +157,10 @@ exactly that shape.
 
 ## Exercises
 
-1. Give `Noisy` a fourth kind of mistake: calling a tool that does not exist but sounds right
-   (`lookup_town`). Does the error message's list of available tools let the planner recover? Write the
-   planner change that uses it.
+1. Write a planner that guesses its tool's name: it calls `lookup_town` first, and only learns the real
+   name from the error (`available: search_towns, calculate`). Make it read that list and switch. How
+   many turns does the wrong guess cost per task? (`Noisy` cannot teach this: it spoils a name *after*
+   the planner chose the right one, so the planner simply retries.)
 2. Remove the repeated-call guard and make a model that repeats its last call forever. How many turns
    until the step limit, and what did they cost (count the characters sent)?
 3. Add a `write_note(path, text)` tool that needs confirmation: the agent pauses and asks a human

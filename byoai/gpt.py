@@ -94,7 +94,8 @@ class GPT:
             x = x + self._mlp(x.layer_norm(p[f"h{i}.ln2.w"], p[f"h{i}.ln2.b"]), i)
         x = x.layer_norm(p["lnf.w"], p["lnf.b"])
         # Weight tying: the output layer is the embedding table, transposed. A token's input vector
-        # and the vector that predicts it are the same — fewer parameters, and it trains better.
+        # and the vector that predicts it are the same: fewer parameters. (Not better loss here —
+        # chapter 3 measures an untied output reaching 0.52 vs 0.62 after 500 steps.)
         logits = x @ p["wte"].T
         loss = logits.cross_entropy(targets) if targets is not None else None
         return logits, loss

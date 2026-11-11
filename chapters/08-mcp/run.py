@@ -8,6 +8,8 @@ Starts `python -m byoai.mcp` as a subprocess and talks to it over its stdin/stdo
 from __future__ import annotations
 
 import json
+import shlex
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -16,6 +18,9 @@ from byoai.agent import Agent
 from byoai.corpus import knowledge_base
 from byoai.mcp import MCPClient
 from byoai.planner import TownPlanner, agent_tasks, is_correct, town_tools
+
+# Print UTF-8 even when the output is piped or redirected (Windows would otherwise use its legacy code page).
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 
 def show(direction: str, message: dict) -> None:
@@ -65,4 +70,5 @@ with MCPClient([sys.executable, "-m", "byoai.mcp"]) as client:
           f"{(timings['tools over MCP'][0] - timings['in-process tools'][0]) * 1000 / timings['tools over MCP'][1]:.2f} ms per call")
 
 root = Path(__file__).resolve().parents[2]
-print(f"\nuse it from any MCP client, e.g. Claude Code:\n  claude mcp add towns -- uv run --directory {root} python -m byoai.mcp")
+quoted = subprocess.list2cmdline([str(root)]) if sys.platform == "win32" else shlex.quote(str(root))  # paths with spaces
+print(f"\nuse it from any MCP client, e.g. Claude Code:\n  claude mcp add towns -- uv run --directory {quoted} python -m byoai.mcp")

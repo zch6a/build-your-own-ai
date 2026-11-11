@@ -9,6 +9,7 @@ again by itself.
 
 from __future__ import annotations
 
+import sys
 import time
 
 import numpy as np
@@ -16,6 +17,9 @@ import numpy as np
 from byoai.corpus import stories
 from byoai.gpt import GPT, GPTConfig, evaluate, train
 from byoai.zoo import CONFIG, EOT, STEPS, story_ids, story_model, story_tokenizer
+
+# Print UTF-8 even when the output is piped or redirected (Windows would otherwise use its legacy code page).
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 tok = story_tokenizer()
 data = story_ids(tok)

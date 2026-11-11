@@ -62,6 +62,14 @@ reshape and transpose (to split into heads), indexing with integer arrays (the e
 looked up with token ids — and a token that appears twice must get both gradients, hence
 `np.add.at`), a mask (a token may not attend to the future), softmax, layer norm, GELU, and the loss:
 
+Three words the rest of the book uses constantly, defined here once. A language model outputs one
+score per possible next token — the **logits**, any real numbers. **Softmax** turns them into
+probabilities: exponentiate each, divide by the sum. The **loss** (cross-entropy) is −ln of the
+probability the model gave to the token that actually came next, averaged over positions: 0 for a
+model that is certain and right, ln V for one that guesses uniformly among V tokens, and large when it
+is confidently wrong. A loss of 0.62 means the right token got e^−0.62 ≈ 54% probability, on average
+in that sense. (The unit of a natural logarithm is the *nat*.) Training means making the loss smaller.
+
 ```python
 def cross_entropy(self, targets):
     ...  # log-softmax and the negative log-likelihood in one step
@@ -106,7 +114,9 @@ Weight decay is applied directly to the weights ("AdamW") and only to matrices, 
 ## Exercises
 
 1. Add `sigmoid` with its own backward, and a `gradcheck` test for it.
-2. Remove the topological sort and walk the graph depth-first instead. Which test fails, and why?
+2. Remove the topological sort: starting from the loss, call each node's backward as soon as it is
+   reached, recursing into its inputs. Which test fails, and why? (Look for a value used twice —
+   `layer_norm` has one.)
 3. Replace `np.add.at` in `__getitem__` with `full[index] += g`. Find the input that makes the
    gradient wrong.
 4. Train the spiral network with plain gradient descent (`p.data -= lr * p.grad`). How much more
