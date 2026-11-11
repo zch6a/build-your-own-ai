@@ -33,7 +33,7 @@ from typing import IO
 from byoai.agent import Tool, coerce, validate
 
 PROTOCOL_VERSION = "2025-06-18"
-SUPPORTED_VERSIONS = ("2025-06-18", "2025-03-26", "2024-11-05")
+SUPPORTED_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")  # the handshake-based revisions
 
 # JSON-RPC error codes
 PARSE_ERROR, INVALID_REQUEST, METHOD_NOT_FOUND, INVALID_PARAMS, INTERNAL_ERROR = -32700, -32600, -32601, -32602, -32603
@@ -190,6 +190,11 @@ class MCPClient:
             try:
                 line = self._lines.get(timeout=self.timeout)
             except queue.Empty:
+                # Tell the server to stop working on it (the spec says a sender SHOULD), then give up.
+                try:
+                    self.notify("notifications/cancelled", {"requestId": msg_id, "reason": "timeout"})
+                except MCPError:
+                    pass  # the server is gone; nothing to cancel
                 raise TimeoutError(f"no reply to {method!r} within {self.timeout} s") from None
             if line is None:
                 raise MCPError(INVALID_REQUEST, f"server exited while waiting for {method!r}")
@@ -225,22 +230,33 @@ class MCPClient:
                 return text
             return call
 
-        return [Tool(t["name"], t.get("description", ""), t.get("inputSchema", {"type": "object"}), remote(t["name"]))
-                for t in self.request("tools/list").get("tools", [])]
+        listed, cursor = [], None
+        while True:  # the list may come in pages
+            page = self.request("tools/list", {"cursor": cursor} if cursor else None)
+            listed += page.get("tools", [])
+            cursor = page.get("nextCursor")
+            if not cursor:
+                break
+        return [Tool(t["name"], t.get("description", ""), t.get("inputSchema", {"type": "object"}), remote(t["name"])) for t in listed]
 
     def close(self) -> None:
-        """Ask the server to exit by closing its stdin; kill it if it has not within five seconds — and
-        always reap it, so no zombie process is left behind on POSIX."""
+        """Shut the server down the way the spec describes: close its stdin; if it has not exited, send
+        SIGTERM (TerminateProcess on Windows); if it still has not, SIGKILL. Always reap it, so no
+        zombie process is left behind on POSIX."""
         if self.process.poll() is None:
             try:
                 self.process.stdin.close()  # stdin closing is the polite way to ask a stdio server to exit
             except OSError:
                 pass
-            try:
-                self.process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                self.process.kill()
-                self.process.wait()
+            for stop in (None, self.process.terminate, self.process.kill):
+                if stop:
+                    stop()
+                try:
+                    self.process.wait(timeout=5 if stop is None else 2)
+                    break
+                except subprocess.TimeoutExpired:
+                    continue
+            self.process.wait()
 
     def __enter__(self) -> MCPClient:
         return self

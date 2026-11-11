@@ -173,16 +173,18 @@ class HNSWIndex:
         # From its top layer down: find neighbours, link both ways, prune.
         for layer in range(min(level, self.top_layer), -1, -1):
             found = self._search_layer(v, entries, self.ef_construction, layer)
-            m = self.M0 if layer == 0 else self.M
-            neighbours = self._select_neighbors(v, found, m)
+            # The new node links to M neighbours on every layer (the paper's Algorithm 1, as in hnswlib);
+            # a node may end up with more as others link back to it — up to M0 = 2M on layer 0.
+            neighbours = self._select_neighbors(v, found, self.M)
+            cap = self.M0 if layer == 0 else self.M
             self.links[node][layer] = neighbours
             for nb in neighbours:
                 nb_links = self.links[nb][layer]
                 nb_links.append(node)
-                if len(nb_links) > m:
+                if len(nb_links) > cap:
                     # Too many links: keep the best m by the same heuristic.
                     d = self._dist(self._vec[nb], nb_links)
-                    self.links[nb][layer] = self._select_neighbors(self._vec[nb], sorted(zip(d.tolist(), nb_links)), m)
+                    self.links[nb][layer] = self._select_neighbors(self._vec[nb], sorted(zip(d.tolist(), nb_links)), cap)
             entries = [i for _, i in found]
         if level > self.top_layer:
             self.entry, self.top_layer = node, level

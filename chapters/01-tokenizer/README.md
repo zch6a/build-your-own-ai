@@ -52,7 +52,9 @@ Merges happen only *inside* a chunk. Note the leading space belongs to the word 
 model learns `" kites"` as one token, which is why GPT vocabularies are full of tokens starting with a
 space. Numbers are split into groups of at most three digits (`"2024"` → `"202"`, `"4"`), so the tokenizer
 cannot spend its vocabulary on every number it happens to see often — only 1,110 digit strings of up to three digits
-exist, and there is no point learning `"1999"` as one token.
+exist, and there is no point learning `"1999"` as one token. Real tokenizers differ here: GPT-2 kept
+whole numbers together (` ?\p{N}+`); GPT-4's `cl100k_base` caps them at three digits like this one, but
+without the leading space.
 
 **Special tokens are opt-in.** Models use control tokens like `<|endoftext|>` to mark document
 boundaries. If the tokenizer turned that *string* into the control token wherever it appears, anyone
@@ -82,7 +84,7 @@ for wi in list(where.pop(best, ())):     # only the words that contain the pair
 * The last ones are whole words of the stories: `" shell"`, `" map"`, `" ball"`.
 * Training stops early: these generated stories use about a hundred distinct words, so after 264
   merges every word is a single token and there is nothing left to merge. `vocab_size` is an upper
-  bound. A real tokenizer is trained on far more varied text and uses 50,000–200,000 tokens.
+  bound. A real tokenizer is trained on far more varied text and uses about 32,000–256,000 tokens.
 * Compression levels off at the same point: about 3.9 bytes per token once every word is one token.
 
 ## Exercises
@@ -101,7 +103,7 @@ for wi in list(where.pop(best, ())):     # only the words that contain the pair
 
 GPT-2's tokenizer maps bytes to printable Unicode characters so its merges file is readable text;
 `tiktoken` implements the same algorithm in Rust with a pattern that uses Unicode classes Python's
-`re` does not support (`\p{L}`), splits numbers differently, and ships hand-picked special tokens.
+`re` does not support (`\p{L}`), and ships hand-picked special tokens.
 SentencePiece (used by many open models) treats spaces as a visible character and can train with a
 unigram model instead of merges. The core idea — a learned vocabulary of byte sequences — is the same.
 

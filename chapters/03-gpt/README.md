@@ -111,8 +111,10 @@ The model has learned *where* an animal goes, not *which* one.
 
 ## Train longer, and watch it learn to copy
 
-Keeping the animal means attending back to its first mention and copying it — a two-step circuit (one
-head finds "the token after the earlier `with a`", another copies it). What it is worth can be worked
+Keeping the animal means attending back to its first mention and copying it — a two-step circuit, as
+Olsson et al. (2022) describe "induction heads": one head (a *previous-token* head) marks each position
+with the token before it; a second head then uses that mark to find the earlier place that followed
+`with a`, and copies the token there. (They found it does not form in one-layer models — exercise 5.) What it is worth can be worked
 out beforehand: the animal appears about three times in a ~50-token story, so knowing it saves about
 3 × ln 10 / 50 ≈ 0.14 nats per token. After 500 steps the held-out loss sits on a plateau around 0.60–0.62, depending on the run.
 

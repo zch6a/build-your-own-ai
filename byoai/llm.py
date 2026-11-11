@@ -5,7 +5,7 @@ stand-ins, so the tests and demos need no key and cost nothing. If you have an e
 environment variables at it and the RAG and agent demos will use it too:
 
     BYOAI_LLM_BASE_URL   e.g. https://api.deepseek.com   (nothing is sent anywhere unless this is set)
-    BYOAI_LLM_MODEL      e.g. deepseek-chat
+    BYOAI_LLM_MODEL      e.g. deepseek-flash   (providers rename models: check their docs for current names)
     BYOAI_LLM_API_KEY    your key (or DEEPSEEK_API_KEY / OPENAI_API_KEY)
 
 The client is plain standard library: one POST to `/chat/completions`, retries on rate limits
@@ -69,7 +69,12 @@ class OpenAICompatible:
             except json.JSONDecodeError:
                 args = None
             calls.append({"id": c.get("id", ""), "name": fn.get("name", ""), "arguments": args, "raw_arguments": fn.get("arguments", "")})
-        return {"role": "assistant", "content": message.get("content") or "", "tool_calls": calls}
+        reply = {"role": "assistant", "content": message.get("content") or "", "tool_calls": calls}
+        if message.get("reasoning_content"):
+            # Thinking models (DeepSeek's by default) return their reasoning separately — and with tools,
+            # the API wants it sent back on later turns (a 400 error otherwise). Keep it for the agent.
+            reply["reasoning_content"] = message["reasoning_content"]
+        return reply
 
     def _post(self, body: dict) -> dict:
         headers = {"Content-Type": "application/json"}

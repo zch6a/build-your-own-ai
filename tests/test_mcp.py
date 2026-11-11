@@ -158,7 +158,15 @@ for line in sys.stdin:
         send({"jsonrpc": "2.0", "id": m["id"], "method": "ping"})
         pong = json.loads(sys.stdin.readline())
         send({"jsonrpc": "2.0", "id": m["id"], "result": {"content": [{"type": "text", "text": "pong was " + json.dumps(pong.get("result"))}], "isError": False}})
-    # "hang": never answer
+    elif m["method"] == "tools/list":
+        # Two pages, to check the client follows nextCursor.
+        page2 = m.get("params", {}).get("cursor") == "p2"
+        tools = [{"name": "second", "inputSchema": {"type": "object"}}] if page2 else [{"name": "first", "inputSchema": {"type": "object"}}]
+        send({"jsonrpc": "2.0", "id": m["id"], "result": {"tools": tools, **({} if page2 else {"nextCursor": "p2"})}})
+    elif m["method"] == "hang":
+        sys.stderr.write("hanging\n")  # never answer
+    elif m["method"] == "notifications/cancelled":
+        pass
 '''
 
 
@@ -168,11 +176,18 @@ def test_server_requests_with_a_colliding_id_are_not_mistaken_for_replies():
         assert result["content"][0]["text"] == "pong was {}"
 
 
+def test_paginated_tool_lists_are_followed():
+    with MCPClient([sys.executable, "-c", TRICKY_SERVER], timeout=30) as client:
+        assert [t.name for t in client.tools()] == ["first", "second"]
+
+
 def test_a_timeout_after_the_handshake_and_close_reaps_the_server():
     client = MCPClient([sys.executable, "-c", TRICKY_SERVER], timeout=30)  # a slow machine may take a while to start Python
     client.timeout = 1
     with pytest.raises(TimeoutError, match="hang"):
         client.request("hang")
+    sent = [m for direction, m in client.trace if direction == "→"]
+    assert sent[-1] == {"jsonrpc": "2.0", "method": "notifications/cancelled", "params": {"requestId": 2, "reason": "timeout"}}
     client.close()
     assert client.process.returncode is not None
 

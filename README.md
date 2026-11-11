@@ -42,6 +42,9 @@ Every number in the walkthroughs comes from running the code, and some of them a
 - **A phase change on a laptop.** The 3-layer GPT sits on a loss plateau, keeping the story's animal no
   better than chance — then within a few hundred steps learns to copy it (19% → 70%), the
   "induction head" jump seen in large models. ([chapter 3](chapters/03-gpt/README.md))
+- **Textbook claims, tested.** Without position embeddings this GPT trains to exactly the same loss
+  (the causal mask leaks position); untying the output layer *lowers* the loss from 0.62 to 0.52.
+  ([chapter 3](chapters/03-gpt/README.md))
 - **What an embedding holds.** Searching with the GPT's hidden states finds sentences of the same
   *shape*, not the same topic: "the owl and the key" returns "It was cold and the cat was tired".
   ([chapter 5](chapters/05-vectordb/README.md))

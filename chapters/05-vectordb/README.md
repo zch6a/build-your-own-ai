@@ -22,7 +22,7 @@ top = np.argpartition(-scores, k - 1)[:k]          # the k largest, unordered: O
 top = top[np.argsort(-scores[top])]                # order just those k
 ```
 
-`FlatIndex` is the whole of it. It is exact, simple and, with numpy, fast: 8,000 vectors in 0.04 ms.
+`FlatIndex` is the whole of it. It is exact, simple and, with numpy, fast: 8,000 vectors in 0.06 ms.
 It is also the ground truth every approximate index is measured against. Its cost grows with n: a
 billion vectors is a billion dot products per query.
 
@@ -50,8 +50,11 @@ while candidates:
             heappush(candidates, nb); heappush(best, nb)   # and drop the worst if over ef
 ```
 
-Inserting is searching: find the new vector's nearest nodes on each of its layers, link to them in
-both directions, and if a neighbour now has too many links (more than M, or 2·M on layer 0), prune it.
+Inserting is searching: find the new vector's nearest nodes on each of its layers, link it to M of
+them in both directions, and if a neighbour now has too many links (more than M, or 2·M on layer 0),
+prune it. (The first version gave new nodes 2·M links on layer 0 straight away; the paper gives M and
+lets the backlinks fill nodes up to the 2·M cap. Following the paper built the index faster *and*
+raised recall — the tables below are from the corrected version.)
 
 How good is an approximate answer? **Recall@10**: of the true 10 nearest neighbours (found by
 `FlatIndex`), the share that HNSW returned. 0.9 means it found 9 of the 10, on average over the queries.
@@ -66,11 +69,11 @@ is left are links that point different ways, including the rare one to the next 
 
 ```text
 which links to keep (2000 vectors, ef=32):
-  the nearest M          recall@10 0.698
-  the paper's heuristic  recall@10 0.897
+  the nearest M          recall@10 0.719
+  the paper's heuristic  recall@10 0.927
 ```
 
-Same number of links, same search: 20 points of recall from choosing them well. (The first version
+Same number of links, same search: 21 points of recall from choosing them well. (The first version
 computed each candidate pair's distance with its own numpy call; building took 38 s for 3,000 vectors.
 Computing all pairwise distances in one product and looping over plain floats brought it to 10.)
 
@@ -84,14 +87,14 @@ use it. What does random data do to HNSW? Measured on 3,000 vectors, 100 queries
 
 ```text
                ef=16                        ef=64
-clustered      recall 0.845,  181 distances  recall 0.929,  343 distances
-random         recall 0.836,  404 distances  recall 0.993, 1019 distances
+clustered      recall 0.838,  171 distances  recall 0.935,  336 distances
+random         recall 0.780,  351 distances  recall 0.980,  879 distances
 ```
 
 Not what this chapter's first draft claimed ("noise is the hardest case, recall collapses"). Recall
 holds up — but the search does two to three times the work for it: with no structure to follow, the
-beam wanders before it settles. At the same work (about 400 distances), clustered data gets 0.93 and
-random data 0.84. An index tuned on random vectors would look slow and over-provisioned; one tested
+beam wanders before it settles. At the same work (about 350 distances), clustered data gets 0.94 and
+random data 0.78. An index tuned on random vectors would look slow and over-provisioned; one tested
 only on random vectors would never meet the clustered, uneven data where the neighbour heuristic
 above earns its keep.
 
@@ -103,24 +106,24 @@ How much work a search does as the collection grows:
 
 ```text
  vectors   flat looks at   HNSW looks at   recall@10
-    1000            1000        302 ( 30%)       0.991
-    2000            2000        325 ( 16%)       0.962
-    4000            4000        397 ( 10%)       0.892
-    8000            8000        452 (  6%)       0.938
+    1000            1000        300 ( 30%)       0.991
+    2000            2000        329 ( 16%)       0.984
+    4000            4000        380 ( 10%)       0.918
+    8000            8000        414 (  5%)       0.947
 ```
 
-Eight times the vectors, half again the work: HNSW's cost grows roughly with log n, flat search's with
+Eight times the vectors, 1.4 times the work: HNSW's cost grows roughly with log n, flat search's with
 n. (Recall at a fixed `ef` moves a few points from graph to graph; each build is a different random
 graph.) Then the knob:
 
 ```text
    ef  recall@10  distances  ms/query
-   10      0.731        181      0.18
-   32      0.893        318      0.31
-   64      0.938        452      0.55
-  128      0.964        662      0.84
-  256      0.993       1002      1.45
- flat      1.000       8000      0.04
+   10      0.766        164      0.17
+   32      0.918        296      0.33
+   64      0.947        414      0.53
+  128      0.977        622      0.88
+  256      0.993        943      1.51
+ flat      1.000       8000      0.06
 ```
 
 Be honest about the last line: at 8,000 vectors, numpy's single matrix product beats a Python graph

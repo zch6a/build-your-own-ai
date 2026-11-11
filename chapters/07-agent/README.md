@@ -147,9 +147,14 @@ what tools can do is the part you control.
 schemas in the `tools` field and parses `tool_calls` from the reply, so a real model drops in unchanged:
 
 ```bash
-export BYOAI_LLM_BASE_URL=https://api.deepseek.com BYOAI_LLM_MODEL=deepseek-chat BYOAI_LLM_API_KEY=...
+export BYOAI_LLM_BASE_URL=https://api.deepseek.com BYOAI_LLM_MODEL=deepseek-flash BYOAI_LLM_API_KEY=...
 uv run python chapters/07-agent/run.py      # the last part runs 12 tasks with it
 ```
+
+Two details matter with current models. Providers rename them — use the model name from their docs.
+And *thinking* models (DeepSeek's are by default) return their reasoning as `reasoning_content`;
+with tools, DeepSeek requires it to be sent back on later turns and answers 400 otherwise. The client
+keeps it and the agent echoes it, only when present (tested).
 
 The messages the agent sends back are in the wire format the API expects — the assistant turn with its
 `tool_calls`, then one `{"role": "tool", "tool_call_id": …}` message per call — and a test checks

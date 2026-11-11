@@ -75,6 +75,14 @@ def test_tools_are_sent_and_tool_calls_parsed(server):
     assert out["tool_calls"][1]["arguments"] is None  # broken JSON is reported, not raised
 
 
+def test_reasoning_content_is_kept(server):
+    message = {"role": "assistant", "content": "", "reasoning_content": "Think first.", "tool_calls": [
+        {"id": "c1", "type": "function", "function": {"name": "f", "arguments": "{}"}}]}
+    server.replies.append((200, {"choices": [{"message": message}]}))
+    out = OpenAICompatible(server.url, "m").chat([])
+    assert out["reasoning_content"] == "Think first." and out["tool_calls"][0]["name"] == "f"
+
+
 def test_retries_rate_limits_and_server_errors(server):
     server.replies += [(429, {"error": "slow down"}), (500, "oops"), (200, reply("ok"))]
     assert OpenAICompatible(server.url, "m", retries=2).chat([])["content"] == "ok"

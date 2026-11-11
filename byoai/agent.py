@@ -153,9 +153,12 @@ class Agent:
                 messages.append({"role": "assistant", "content": reply.get("content", "")})
                 return Result(reply.get("content", ""), step, calls, messages)
             # The assistant turn, in the wire format the API expects back.
-            messages.append({"role": "assistant", "content": reply.get("content") or None, "tool_calls": [
+            turn = {"role": "assistant", "content": reply.get("content") or None, "tool_calls": [
                 {"id": c["id"], "type": "function", "function": {"name": c["name"], "arguments": c.get("raw_arguments") or json.dumps(c["arguments"])}}
-                for c in reply["tool_calls"]]})
+                for c in reply["tool_calls"]]}
+            if reply.get("reasoning_content"):
+                turn["reasoning_content"] = reply["reasoning_content"]  # thinking models need it back (see byoai.llm)
+            messages.append(turn)
             for call in reply["tool_calls"]:
                 result, error = self._execute(call, seen)
                 calls.append(Step(call["name"], call["arguments"], result, error))

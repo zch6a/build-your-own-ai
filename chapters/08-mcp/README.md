@@ -53,7 +53,9 @@ MCP separates who made the mistake:
 * **Protocol errors** are JSON-RPC errors: unparseable JSON (`-32700`), a malformed request (`-32600`),
   an unknown method (`-32601`), an unknown tool (`-32602`). The *client program* got something wrong.
 * **Tool errors** are normal results with `isError: true`: bad arguments, an exception in the tool. The
-  *model* gets to read them and try again.
+  *model* gets to read them and try again. (Revision 2025-06-18 still listed invalid arguments as a
+  protocol error; 2025-11-25 moved them here, so the model can correct itself. This server follows the
+  newer rule.)
 
 That second kind is chapter 7's error feedback carried across a process boundary: the client turns an
 `isError` result into an exception, and the agent turns the exception into an `error:` message for the
@@ -75,8 +77,8 @@ The client has its own failure modes, each tested:
 * **A server that hangs.** A reader thread moves every line from the server onto a queue, and each
   request waits on the queue with a timeout. A silent server is a `TimeoutError` after `timeout`
   seconds, not a frozen client. If it hangs during the handshake, the client kills it at once; a later
-  request that times out leaves it running (it may only be slow, and a late reply is recognized by its
-  `id` and dropped), and `close()` ends it.
+  request that times out is cancelled with `notifications/cancelled` (as the spec asks) and the server
+  keeps running — it may only be slow, and a late reply is recognized by its `id` and dropped.
 * **Requests from the server.** The server may send requests of its own (`ping`, and in the full
   protocol `sampling/createMessage` and others). JSON-RPC ids are per sender, so a server request can
   carry the same id as the client's pending one — a client that matched on `id` alone would take the
@@ -86,8 +88,11 @@ The client has its own failure modes, each tested:
   fails with "server exited".
 * **Noise on stdout.** Lines that are not JSON are skipped, and responses are matched by `id`, so a
   notification arriving in between does not get mistaken for the answer.
-* **Shutdown.** Closing the server's stdin is how a stdio server is asked to stop; it is killed only if it
-  does not exit within five seconds, and always reaped (no zombie processes on Linux and macOS).
+* **Shutdown**, in the spec's order: close the server's stdin; if it has not exited, SIGTERM (on
+  Windows, TerminateProcess); if it still has not, SIGKILL. Always reaped — no zombie processes on
+  Linux and macOS.
+* **Pages.** `tools/list` may return a `nextCursor`; the client keeps asking until there is none, so a
+  server with many tools does not silently lose the rest.
 
 The server, for its part, must survive anything a client sends: `params` that are not an object, a
 tool name that is not a string, and — if the server itself has a bug — an exception in `handle`, which
@@ -120,6 +125,17 @@ claude mcp add towns -- uv run --directory /path/to/build-your-own-ai python -m 
 Add `--notes /some/folder` at the end to also offer `read_file`, sandboxed to that folder (chapter 7).
 The tests check the message shapes against the protocol revision 2025-06-18 and run the server in a real
 subprocess; it has not been tested against every client.
+
+## Versions
+
+MCP changes quickly. This chapter teaches the handshake-based revisions — 2024-11-05 to 2025-11-25,
+all accepted here — because the handshake makes every step visible. Revision 2026-07-28 changes the
+shape: no `initialize` or `ping`; the protocol version and capabilities travel in each request's
+`_meta`; a new `server/discover` replaces the handshake; servers on stdio may no longer send requests
+of their own; sampling, roots and logging are deprecated. Its stdio rules tell new clients to try
+`server/discover` and fall back to `initialize` when a server answers "method not found" — which this
+server does, so such clients can still use it. The tools themselves — names, schemas, `tools/call`,
+`isError` — carry over unchanged.
 
 ## Exercises
 

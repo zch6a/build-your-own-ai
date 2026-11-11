@@ -62,7 +62,7 @@ stories among 40.
 
 High temperature makes the long tail of unlikely tokens likely enough to be picked — one bad token and
 the sentence is broken. Top-k and top-p cut the tail off *before* sampling, which is why "creative"
-settings in real products combine a temperature above 1 with top-p around 0.9: variety among the
+settings typically combine a temperature near 1 with top-p around 0.9–0.95: variety among the
 plausible tokens, none of the implausible ones.
 
 ```python

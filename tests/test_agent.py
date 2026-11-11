@@ -116,6 +116,16 @@ def test_repeated_calls_are_not_rerun():
     assert runs == [1] and "already made exactly this call" in result.calls[1].result
 
 
+def test_reasoning_content_is_sent_back():
+    # DeepSeek's thinking models reject a tool conversation that drops their earlier reasoning.
+    llm = ScriptedLLM([{"tool_calls": [call("add", {"a": 2})], "reasoning_content": "I should add."}, "2"])
+    Agent(llm, [add]).run("?")
+    assert llm.requests[1]["messages"][2]["reasoning_content"] == "I should add."
+    plain = ScriptedLLM([{"tool_calls": [call("add", {"a": 2})]}, "2"])
+    Agent(plain, [add]).run("?")
+    assert "reasoning_content" not in plain.requests[1]["messages"][2]  # nothing extra for other APIs
+
+
 def test_a_stuck_model_is_stopped_early():
     llm = ScriptedLLM([{"tool_calls": [call("add", {"a": 1}, id=f"c{i}")]} for i in range(10)])
     result = Agent(llm, [add], max_steps=8).run("?")

@@ -90,9 +90,8 @@ class Tokenizer:
         for step in range(n_merges):
             if not pair_count:
                 break  # every word is a single token already
+            # The most frequent pair; among equals the smallest (so every machine learns the same merges).
             best = max(pair_count, key=lambda p: (pair_count[p], (-p[0], -p[1])))
-            if pair_count[best] < 1:
-                break
             new = 256 + step
             merges[best] = new
             for wi in list(where.pop(best, ())):

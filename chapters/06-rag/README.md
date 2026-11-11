@@ -60,8 +60,10 @@ score(chunk) = Σ over query words w:  idf(w) · tf·(k1+1) / (tf + k1·(1 − b
 
 Three ideas in one line. **idf**: a word in few chunks (`nustorford`) counts for much more than a
 word in all (`the`). **Saturation**: the second mention of a word adds less than the first and the
-tenth almost nothing (`k1 = 1.5`). **Length**: a long chunk matches more words just by being long, so it
-is marked down a little (`b = 0.75`). The index is inverted — word → the chunks containing it — so a
+tenth almost nothing (`k1`, usually set between 1.2 and 2.0; 1.5 here). **Length**: a long chunk matches
+more words just by being long, so it is marked down a little (`b = 0.75`, the usual default). The idf
+is Lucene's variant, ln(1 + (N − df + 0.5) / (df + 0.5)), which never goes negative — the textbook
+version does for words in more than half the chunks. The index is inverted — word → the chunks containing it — so a
 query only touches the lists of its own words. BM25 is from the 1990s and still the baseline every
 retriever has to beat; for names, numbers and exact terms it is very hard to beat.
 
@@ -142,7 +144,7 @@ chat endpoint — DeepSeek, OpenAI, a local server — using only the standard l
 calls parsed for chapter 7. Its tests run against a fake server on localhost. To try one:
 
 ```bash
-export BYOAI_LLM_BASE_URL=https://api.deepseek.com BYOAI_LLM_MODEL=deepseek-chat BYOAI_LLM_API_KEY=...
+export BYOAI_LLM_BASE_URL=https://api.deepseek.com BYOAI_LLM_MODEL=deepseek-flash BYOAI_LLM_API_KEY=...
 uv run python chapters/06-rag/run.py      # part 4 now asks it 30 questions
 ```
 
