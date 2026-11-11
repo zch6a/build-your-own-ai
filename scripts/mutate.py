@@ -58,6 +58,14 @@ def main() -> int:
         copy = Path(tmp) / "repo"
         shutil.copytree(ROOT, copy, ignore=shutil.ignore_patterns(".venv", ".git", "checkpoints", "__pycache__", ".pytest_cache"))
         env = {**os.environ, "PYTHONPATH": str(copy), "BYOAI_CHECKPOINTS": str(Path(tmp) / "checkpoints")}
+        def run_suite() -> subprocess.CompletedProcess:
+            return subprocess.run([sys.executable, "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider", "tests"], cwd=copy, env=env, capture_output=True, timeout=300)
+
+        # The unmutated suite must pass first: otherwise every mutant would look "caught".
+        baseline = run_suite()
+        if baseline.returncode != 0:
+            print("The test suite fails without any mutant; fix that first:\n" + baseline.stdout.decode(errors="replace")[-2000:])
+            return 2
         survived = []
         for i, (file, original, mutant) in enumerate(MUTANTS, start=1):
             path = copy / file
@@ -68,7 +76,7 @@ def main() -> int:
                 continue
             path.write_text(source.replace(original, mutant, 1), encoding="utf-8")
             try:
-                result = subprocess.run([sys.executable, "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider", "tests"], cwd=copy, env=env, capture_output=True, timeout=300)
+                result = run_suite()
                 caught = result.returncode != 0
             except subprocess.TimeoutExpired:
                 caught = True  # a hang is a failure too
