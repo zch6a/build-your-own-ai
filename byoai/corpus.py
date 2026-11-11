@@ -85,7 +85,7 @@ def knowledge_base(n_towns: int = 60, seed: int = 0) -> tuple[list[dict], list[d
     """Encyclopedia articles about invented towns, and questions about them with their answers.
 
     Returns `(documents, questions)`: documents are `{"title", "text"}`; questions are `{"question",
-    "answer", "doc"}` with `doc` the index of the article that answers it. Each fact is written in one of
+    "answer", "doc", "field"}` with `doc` the index of the article that answers it. Each fact is written in one of
     several phrasings, and only some sentences repeat the town's name ("Its mayor is …"), as in real text.
     """
     r = random.Random(seed)
@@ -113,11 +113,11 @@ def knowledge_base(n_towns: int = 60, seed: int = 0) -> tuple[list[dict], list[d
         body = facts[:1] + r.sample(facts[1:] + r.sample(_FILLER, 3), len(facts) - 1 + 3)
         documents.append({"title": town, "text": f"{town} is a town in the valley. " + " ".join(body)})
         questions += [
-            {"question": f"Who is the mayor of {town}?", "answer": mayor, "doc": i},
-            {"question": f"Which river does {town} lie on?", "answer": river, "doc": i},
-            {"question": f"What is {town} famous for?", "answer": product, "doc": i},
-            {"question": f"When was {town} founded?", "answer": str(founded), "doc": i},
-            {"question": f"How many people live in {town}?", "answer": f"{people:,}", "doc": i},
-            {"question": f"In which month is the harvest festival of {town}?", "answer": month, "doc": i},
+            {"question": f"Who is the mayor of {town}?", "answer": mayor, "doc": i, "field": "mayor"},
+            {"question": f"Which river does {town} lie on?", "answer": river, "doc": i, "field": "river"},
+            {"question": f"What is {town} famous for?", "answer": product, "doc": i, "field": "product"},
+            {"question": f"When was {town} founded?", "answer": str(founded), "doc": i, "field": "founded"},
+            {"question": f"How many people live in {town}?", "answer": f"{people:,}", "doc": i, "field": "population"},
+            {"question": f"In which month is the harvest festival of {town}?", "answer": month, "doc": i, "field": "festival"},
         ]
     return documents, questions

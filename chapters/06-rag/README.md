@@ -165,5 +165,5 @@ search. Evaluation grows too — answer faithfulness, citation accuracy — ofte
 But the questions stay the ones measured here: did the answer reach the prompt, and did the model use
 it or make something up?
 
-**Next:** Chapter 7 — Agent: a model that decides for itself which tool to call — retrieval among
+**Next:** [Chapter 7 — Agent](../07-agent/README.md): a model that decides for itself which tool to call — retrieval among
 them — in a loop, until the task is done.
