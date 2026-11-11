@@ -129,7 +129,7 @@ they looked for "induction heads": the circuit forms in a short phase change, an
 appears with it. It is one reason training curves are watched for a long time before anyone gives up.
 
 (The shared model of the later chapters trains for 500 steps, so every demo starts in two minutes;
-`longer.py` takes ten to fifteen.)
+`longer.py` takes about fifteen.)
 
 ## Exercises
 
