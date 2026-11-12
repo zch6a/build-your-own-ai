@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
 
+# Read-only: tests need no write access.
 permissions:
   contents: read
 
@@ -18,9 +19,13 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python: ['3.10', '3.13']
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
-      - run: uv sync --python ${{ matrix.python }}
+      # Actions pinned to commits; the token is not left in the checkout.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+      # The lock file decides every version: a changed dependency is a reviewed change, not a surprise.
+      - run: uv sync --locked --python ${{ matrix.python }}
       - run: uv run pytest -q
       - name: Every chapter's demo runs
         shell: bash
