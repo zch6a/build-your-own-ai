@@ -114,3 +114,9 @@ then a local commit.
   - *Missing for release*: "Before you start" (prerequisites, reading path, costs) and an FAQ in both READMEs; `CONTRIBUTING.md`; the changelog written up as 0.1.0 release notes (not published; it says plainly that CI has not run yet because the repository is local).
 - **Final check**: 238 tests (incl. 3 doctests), all eight demos, every printed number compared with its walkthrough; `scripts/mutate.py` 29/29.
 - **Five rounds in total**: independent code review (20 fixes), a learner doing the exercises (claims re-measured, exercises rewritten), external specs and papers (DeepSeek, MCP versions, HNSW), mutation testing (6 untested behaviours found and covered), and this blind read-through (the phase-change experiment made sound).
+
+### 2026-11-14 — Chinese README: AI tone
+
+- 13 places: eleven decorative dashes in running text rewritten as full stops, commas, a colon or brackets (the dash count was far above 2 per 1,000 characters); three 不需要 sentences in a row merged into one; a removable 当……时 dropped (chapter 7).
+- The checks follow the findings of lieflat-less-ai-tone (shiujan, CC BY-NC 4.0); its findings applied, its text not copied.
+- Left as they are: the dashes in the banner alt text and inside table cells, colon-led lists and result enumerations (69% / 31% / 0%), 最有意思的发现： (it carries a judgement, not an empty lead-in), factual comparisons such as 句型相同而不是内容相同 and 把错误回传给模型而不是直接停止.
