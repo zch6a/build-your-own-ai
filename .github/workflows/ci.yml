@@ -23,9 +23,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3; it has no moving major tag
       # The lock file decides every version: a changed dependency is a reviewed change, not a surprise.
       - run: uv sync --locked --python ${{ matrix.python }}
+      - name: Lint (ruff; the code is formatted by hand for the walkthroughs, so only the checks)
+        run: uvx ruff@0.15.0 check byoai tests chapters scripts
       - run: uv run pytest -q
       - name: Every chapter's demo runs
         shell: bash

@@ -26,7 +26,7 @@ import numpy as np
 
 from byoai.vectordb import FlatIndex
 
-_WORD = re.compile(r"[a-z0-9]+")
+_WORD = re.compile(r"[^\W_]+")  # letters and digits of any script: "Zoë" stays one word
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
 
 

@@ -9,7 +9,8 @@ tokens an id of its own.
 Three decisions shape it:
 
 * **Bytes, not characters.** Text is UTF-8 encoded first, so any input — emoji, Chinese, a binary
-  blob — has a lossless encoding: the 256 byte tokens are always there to fall back on. There is no
+  blob — has a lossless encoding (any string UTF-8 can encode; a lone surrogate such as U+D800 is not
+  text and is refused): the 256 byte tokens are always there to fall back on. There is no
   "unknown" token.
 * **Pre-tokenization.** Before counting pairs, text is split into word-like chunks (`" the"`,
   `"'s"`, `" 123"`). Merges never cross a chunk boundary, so the vocabulary is spent on pieces of
@@ -26,6 +27,7 @@ Three decisions shape it:
 
 from __future__ import annotations
 
+import codecs
 import json
 import re
 from collections import Counter, defaultdict
@@ -158,6 +160,16 @@ class Tokenizer:
     def decode(self, ids: list[int]) -> str:
         """Ids to text. A sequence cut in the middle of a UTF-8 character decodes to U+FFFD there."""
         return self.decode_bytes(ids).decode("utf-8", errors="replace")
+
+    def stream_decoder(self):
+        """For printing tokens one at a time: `decode([token])` turns half a character into U+FFFD, so
+        this keeps the bytes of an unfinished character until the token that completes it arrives.
+
+            show = tok.stream_decoder()
+            for token in engine.stream(ids): print(show(token), end="")
+        """
+        decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
+        return lambda token: decoder.decode(self.decode_bytes([token]))
 
     def decode_bytes(self, ids: list[int]) -> bytes:
         try:

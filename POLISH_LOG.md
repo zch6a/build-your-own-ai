@@ -120,3 +120,39 @@ then a local commit.
 - 13 places: eleven decorative dashes in running text rewritten as full stops, commas, a colon or brackets (the dash count was far above 2 per 1,000 characters); three 不需要 sentences in a row merged into one; a removable 当……时 dropped (chapter 7).
 - The checks follow the findings of lieflat-less-ai-tone (shiujan, CC BY-NC 4.0); its findings applied, its text not copied.
 - Left as they are: the dashes in the banner alt text and inside table cells, colon-led lists and result enumerations (69% / 31% / 0%), 最有意思的发现： (it carries a judgement, not an empty lead-in), factual comparisons such as 句型相同而不是内容相同 and 把错误回传给模型而不是直接停止.
+
+## Cycle 2, round 1 (2026-11-14) — 0.2.0
+
+- **Independent review** (a fresh agent, working on a copy, offline, demos one at a time): nine confirmed
+  defects, three suspected; I reproduced each before fixing it. Fixed:
+  - *Autograd counted a shared subgraph twice*: the "a graph is used once" guard only looked at the root, so
+    `h = x*x; h.sum().backward(); (h*3).sum().backward()` gave dx = [10, 20] instead of [8, 16], silently.
+    It now raises if any tensor on the way was used.
+  - *A vector times a stack of matrices* (`(3,) @ (2, 3, 4)`) had twice the right gradient for the vector and
+    a (3, 2, 4) gradient for the stack. The backward pass treats the vector as a 1×k matrix, as numpy's
+    forward pass does. Checked against finite differences for five shape pairs. `ndarray @ Tensor` works.
+  - *One non-UTF-8 byte killed the MCP server*, which promised that nothing a client sends can crash it.
+    Batches now get one answer per request (2025-03-26 requires them); ids must be strings or integers.
+  - *Exact duplicate vectors split the HNSW graph* (100 identical vectors: 67 unreachable). Three cheap
+    variants of the neighbour heuristic did not help (pruning keeps the oldest links whatever the rule), so
+    exact copies are now aliases of the first copy, returned with it; distinct data takes the same path
+    as before, and chapter 5's numbers did not move.
+  - *The agent's step limit did not limit cost*: one turn asking for 500 calls ran them all. `max_calls`
+    (32); the unrun calls get an error result so the transcript stays valid for the API.
+  - Smaller: queries as a (1, d) row; NaN refused; `safe_eval` names the base or the exponent;
+    `stream_decoder()` for printing tokens one at a time (multi-byte characters came out as U+FFFD);
+    BM25 words in any script; the docstring on lone surrogates.
+  - *"Deterministic" needed a qualifier*: the lock file resolves numpy 2.2 on Python 3.10 and 2.5 on 3.12+,
+    and the model trained on 3.10 differs a little (held-out loss the same 0.62; chapter 4's greedy fluency
+    83% instead of 67%). The READMEs say so; the checkpoint key includes the numpy version.
+  - Kept as it is, with a comment: the training batches never use the corpus's last token as a target
+    (an off-by-one); fixing it would move every published number for one token in hundreds of thousands.
+- **Every number re-checked**: the chapter 3 to 8 demos run on the old code (a worktree of HEAD) and the new
+  one, outputs compared line by line: identical except timings (chapter 3 retrained under the new key and
+  gave the same output). 254 tests on Python 3.14 and 3.10; `scripts/mutate.py` 33 of 33 (four new mutants
+  for the fixes; two old ones updated to the changed lines).
+- **Engineering**: ruff in CI (lint only: the code is laid out by hand for the walkthroughs); two unused
+  imports and an ambiguous loop name fixed; setup-uv pinned to v10.3.3 like the other repositories.
+- **Docs**: chapter 5 explains the copies, chapter 7 the call limit, chapter 8 the batches, the bad byte and
+  which revisions are accepted; the FAQ (both languages) the numpy point; the mutation count is 33.
+  CHANGELOG: 0.2.0, and 0.1.0 no longer says "not yet published".

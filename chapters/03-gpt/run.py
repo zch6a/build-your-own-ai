@@ -15,7 +15,7 @@ import time
 import numpy as np
 
 from byoai.corpus import stories
-from byoai.gpt import GPT, GPTConfig, evaluate, train
+from byoai.gpt import GPT, GPTConfig, evaluate
 from byoai.zoo import CONFIG, EOT, STEPS, story_ids, story_model, story_tokenizer
 
 # Print UTF-8 even when the output is piped or redirected (Windows would otherwise use its legacy code page).

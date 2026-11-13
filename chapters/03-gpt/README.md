@@ -142,7 +142,7 @@ than chance. Then, within 500 steps, the model starts copying and the loss drops
 0.47 the arithmetic predicted. This sudden jump is what researchers found in real language models when
 they looked for induction heads: the circuit forms in a short phase change, and in-context learning
 appears with it. It is one reason training curves are watched for a long time before anyone gives up.
-Training is deterministic, so the run repeats step for step; change `SEED` in `longer.py` to see the
+Training is deterministic (for a given numpy), so the run repeats step for step; change `SEED` in `longer.py` to see the
 jump come at another step.
 
 An honest note on how this table was made. A first version of `longer.py` called `train` once per 250

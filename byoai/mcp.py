@@ -17,8 +17,11 @@ Run the town server (chapter 7's tools) and point any MCP client at it:
     uv run python -m byoai.mcp                      # search_towns, calculate
     uv run python -m byoai.mcp --notes ./notes      # + read_file, sandboxed to ./notes
 
-Standard library only. This implements the tools part of the protocol (revision 2025-06-18); MCP also
-defines resources, prompts and sampling, which follow the same request/response pattern.
+Standard library only. This implements the tools part of the protocol: the client asks for revision
+2025-06-18, the server accepts every revision with the same handshake (2024-11-05 to 2025-11-25) and
+answers JSON-RPC batches, which 2025-03-26 requires. It is lenient in one place the spec allows: tools
+are served before `initialize` (a client should not ask, the server need not refuse). MCP also defines
+resources, prompts and sampling, which follow the same request/response pattern.
 """
 
 from __future__ import annotations
@@ -64,16 +67,23 @@ class MCPServer:
         self.tools = {t.name: t for t in tools}
         self.initialized = False
 
-    def handle(self, message: object) -> dict | None:
+    def handle(self, message: object) -> dict | list | None:
         """One incoming message → the response to send, or None (notifications get no reply).
 
         Nothing a client sends may crash the server: every shape is checked before it is used, and
         `serve` turns anything unexpected into an internal error (−32603) instead of exiting."""
+        if isinstance(message, list):  # a batch: one response per request in it, none if all were notifications
+            if not message:
+                return _error(None, INVALID_REQUEST, "empty batch")
+            answers = [_error(None, INVALID_REQUEST, "a batch inside a batch") if isinstance(m, list) else self.handle(m) for m in message]
+            return [a for a in answers if a is not None] or None
         if isinstance(message, dict) and "method" not in message and ("result" in message or "error" in message):
             return None  # a response to a request of ours; this server sends none, so there is nothing to match
         if not isinstance(message, dict) or message.get("jsonrpc") != "2.0" or not isinstance(message.get("method"), str):
             return _error(message.get("id") if isinstance(message, dict) else None, INVALID_REQUEST, "not a JSON-RPC 2.0 request")
         method, params, msg_id = message["method"], message.get("params", {}), message.get("id")
+        if "id" in message and (not isinstance(msg_id, (str, int)) or isinstance(msg_id, bool)):
+            return _error(None, INVALID_REQUEST, "a request id must be a string or an integer")  # MCP rules out null
         if not isinstance(params, dict):
             return None if "id" not in message else _error(msg_id, INVALID_PARAMS, "params must be an object")
         if "id" not in message:  # a notification
@@ -281,7 +291,8 @@ def main(argv: list[str] | None = None) -> None:
     documents, _ = knowledge_base()
     tools = town_tools(documents) + ([sandboxed_reader(args.notes)] if args.notes else [])
     # Windows would otherwise translate "\n" to "\r\n" and use the console's code page.
-    sys.stdin.reconfigure(encoding="utf-8")
+    # A byte that is not UTF-8 becomes U+FFFD, so that line is a parse error, not a crash of the server.
+    sys.stdin.reconfigure(encoding="utf-8", errors="replace")
     sys.stdout.reconfigure(encoding="utf-8", newline="\n")
     MCPServer("byoai-towns", tools).serve()
 

@@ -118,7 +118,7 @@ class Result:
     steps: int  # model turns
     calls: list[Step] = field(default_factory=list)
     messages: list[dict] = field(default_factory=list)
-    stopped: str = "answered"  # or "max_steps", "repeating", "error"
+    stopped: str = "answered"  # or "max_steps", "max_calls", "repeating", "error"
 
 
 class Agent:
@@ -128,6 +128,7 @@ class Agent:
       schema, an exception inside the tool — goes back to the model as the tool's result, starting
       with "error:". The model can fix its call; a crashed loop cannot.
     * `max_steps` bounds the number of model turns: a confused model must not spin forever on your bill.
+      `max_calls` bounds the tool calls of the whole run, since one turn can ask for any number of them.
     * The same call repeated (same tool, same arguments) is answered with a reminder, not run again;
       after `max_repeats` such repeats the run stops — a model that keeps asking the same thing is stuck.
     * Tool results are cut to `max_result_chars`: whatever a tool returns is read by the model on every
@@ -135,11 +136,11 @@ class Agent:
     * `feedback=False` is the naive loop, for comparison: the first failed call ends the run.
     """
 
-    def __init__(self, model, tools: list[Tool], system: str = "You are a helpful assistant. Use the tools when you need facts or arithmetic.", max_steps: int = 8, max_result_chars: int = 2000, feedback: bool = True, max_repeats: int = 2):
+    def __init__(self, model, tools: list[Tool], system: str = "You are a helpful assistant. Use the tools when you need facts or arithmetic.", max_steps: int = 8, max_result_chars: int = 2000, feedback: bool = True, max_repeats: int = 2, max_calls: int = 32):
         self.model, self.system = model, system
         self.tools = {t.name: t for t in tools}
         self.max_steps, self.max_result_chars, self.feedback = max_steps, max_result_chars, feedback
-        self.max_repeats = max_repeats
+        self.max_repeats, self.max_calls = max_repeats, max_calls
 
     def run(self, task: str) -> Result:
         messages = [{"role": "system", "content": self.system}, {"role": "user", "content": task}]
@@ -160,6 +161,11 @@ class Agent:
                 turn["reasoning_content"] = reply["reasoning_content"]  # thinking models need it back (see byoai.llm)
             messages.append(turn)
             for call in reply["tool_calls"]:
+                if len(calls) >= self.max_calls:
+                    # every call of the turn still needs a result in the transcript the API is sent next
+                    messages += [{"role": "tool", "tool_call_id": c["id"], "content": "error: not run, the tool-call limit was reached"}
+                                 for c in reply["tool_calls"][reply["tool_calls"].index(call):]]
+                    return Result("Stopped: the tool-call limit was reached.", step, calls, messages, "max_calls")
                 result, error = self._execute(call, seen)
                 calls.append(Step(call["name"], call["arguments"], result, error))
                 messages.append({"role": "tool", "tool_call_id": call["id"], "content": result})
@@ -212,8 +218,10 @@ def safe_eval(expression: str) -> float | int:
             return _OPS[type(node.op)](walk(node.operand))
         if isinstance(node, ast.BinOp) and type(node.op) in _OPS:
             left, right = walk(node.left), walk(node.right)
-            if isinstance(node.op, ast.Pow) and (abs(right) > 100 or abs(left) > 1e6):
+            if isinstance(node.op, ast.Pow) and abs(right) > 100:
                 raise ValueError("exponent too large")
+            if isinstance(node.op, ast.Pow) and abs(left) > 1e6:
+                raise ValueError("base too large for a power (above a million)")
             return _OPS[type(node.op)](left, right)
         raise ValueError(f"not allowed in an arithmetic expression: {type(node).__name__}")
 

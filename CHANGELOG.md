@@ -1,6 +1,38 @@
 # Changelog
 
-## 0.1.0 — first release (not yet published)
+## 0.2.0 — fixes from an independent review
+
+Every published number is unchanged (the chapter demos were run before and after and compared line by
+line; only timings differ), except where a version of numpy is involved (see the last point).
+
+**Fixes**
+
+- **Autograd**: a backward pass through a tensor that an earlier backward pass already used raised only
+  at the root of the graph; through an intermediate (`h = x*x`, `h.sum().backward()`, then
+  `(h*3).sum().backward()`) it silently sent h's old gradient down again (dx = [10, 20], not [8, 16]).
+  It now raises wherever the graph was used. A vector times a stack of matrices (`(3,) @ (2, 3, 4)`)
+  had twice the right gradient for the vector and a gradient of the wrong shape for the stack. `ndarray
+  @ Tensor` works.
+- **MCP**: one byte that is not UTF-8 ended the server; it is now a parse error for that line. Batches
+  (JSON arrays of requests, required by revision 2025-03-26) get one answer per request. Request ids must
+  be strings or integers.
+- **Vector database**: exact copies of a vector made a third of the data unreachable in the HNSW graph;
+  copies are now aliases of the first one and returned with it. A query may be a single row `(1, dim)`.
+  NaN and infinity are refused.
+- **Agent**: `max_calls` (32) limits the tool calls of a run; one turn could ask for 500. `safe_eval`
+  says whether the exponent or the base of a power is too large.
+- **Tokenizer**: `stream_decoder()` prints tokens one at a time without turning a character split across
+  tokens into U+FFFD (chapter 4's streaming demo uses it). The docs say that a lone surrogate is not text.
+- **RAG**: BM25's words are letters and digits of any script (`Zoë` stayed `zo`, Chinese had no words).
+- **Determinism, stated precisely**: training repeats step for step for a given seed, code *and numpy*.
+  Python 3.10 resolves an older numpy, and the model trained there differs a little (same held-out loss,
+  chapter 4's sampling table a few points off). The cached model is now keyed by the numpy version.
+
+**Engineering**: ruff in CI (two unused imports and an ambiguous name fixed); setup-uv pinned to the
+same release as the other workflows; 15 tests for the review's findings; mutation testing has 33
+deliberate bugs (four new, for the fixes above), all caught.
+
+## 0.1.0 — first release
 
 Eight chapters, each a module in `byoai/`, a walkthrough and a demo in `chapters/`, and tests. Python 3.10+,
 numpy as the only dependency, nothing to download, no API key.

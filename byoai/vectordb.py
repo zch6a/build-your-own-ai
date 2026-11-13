@@ -24,6 +24,26 @@ from pathlib import Path
 import numpy as np
 
 
+def _rows(vectors: np.ndarray) -> np.ndarray:
+    """Vectors to store, as rows; NaN or infinity would poison every distance computed with them."""
+    v = np.atleast_2d(np.asarray(vectors, dtype=np.float32))
+    if v.ndim != 2:
+        raise ValueError(f"vectors must be (n, dim), got shape {v.shape}")
+    if not np.isfinite(v).all():
+        raise ValueError("vectors contain NaN or infinity")
+    return v
+
+
+def _one(query: np.ndarray) -> np.ndarray:
+    """A query: one vector, given as (dim,) or as a single row (1, dim) like `add` accepts."""
+    q = np.asarray(query, dtype=np.float32)
+    if q.ndim == 2 and q.shape[0] == 1:
+        q = q[0]
+    if q.ndim != 1:
+        raise ValueError(f"search takes one query vector, got shape {q.shape}")
+    return q
+
+
 def normalize(x: np.ndarray) -> np.ndarray:
     """Unit length along the last axis (a zero vector stays zero)."""
     x = np.asarray(x, dtype=np.float32)
@@ -42,14 +62,14 @@ class FlatIndex:
         return len(self.vectors)
 
     def add(self, vectors: np.ndarray) -> list[int]:
-        v = normalize(np.atleast_2d(vectors))
+        v = normalize(_rows(vectors))
         start = len(self.vectors)
         self.vectors = np.vstack([self.vectors, v])
         return list(range(start, start + len(v)))
 
     def search(self, query: np.ndarray, k: int = 10) -> tuple[np.ndarray, np.ndarray]:
         """The k most similar stored vectors: (ids, cosine similarities), best first."""
-        scores = self.vectors @ normalize(query)
+        scores = self.vectors @ normalize(_one(query))
         k = min(k, len(scores))
         top = np.argpartition(-scores, k - 1)[:k] if k < len(scores) else np.arange(len(scores))
         top = top[np.argsort(-scores[top])]
@@ -79,6 +99,8 @@ class HNSWIndex:
         self.n = 0
         self.links: list[list[list[int]]] = []  # links[node][layer] -> neighbour ids
         self.deleted: set[int] = set()
+        self._first: dict[bytes, int] = {}  # a vector's bytes -> the first node with them
+        self.copies: dict[int, list[int]] = {}  # first node -> later exact copies
         self.entry: int | None = None
         self.top_layer = -1
         self.distance_computations = 0  # for the demo: how much work a search did
@@ -154,7 +176,7 @@ class HNSWIndex:
     # ---- inserting -------------------------------------------------------------------------------------
     def add(self, vectors: np.ndarray) -> list[int]:
         """Insert vectors; returns their ids (0, 1, 2, … in insertion order)."""
-        return [self._insert(v) for v in normalize(np.atleast_2d(vectors))]
+        return [self._insert(v) for v in normalize(_rows(vectors))]
 
     def _insert(self, v: np.ndarray) -> int:
         if self.n == len(self._vec):
@@ -162,6 +184,15 @@ class HNSWIndex:
         node = self.n
         self._vec[node] = v
         self.n += 1
+        # An exact copy of a stored vector is not a node of the graph but an alias of the first copy,
+        # returned with it. As nodes, copies fill each other's link lists (all at distance 0), pruning
+        # keeps the oldest links, and newer copies became unreachable: 100 identical vectors left 67 that
+        # no search could find.
+        first = self._first.setdefault(v.tobytes(), node)
+        if first != node:
+            self.copies.setdefault(first, []).append(node)
+            self.links.append([[]])
+            return node
         level = int(-math.log(1.0 - self.rng.random()) * self.level_mult)
         self.links.append([[] for _ in range(level + 1)])
         if self.entry is None:
@@ -202,7 +233,7 @@ class HNSWIndex:
         """Approximately the k most similar vectors: (ids, cosine similarities), best first."""
         if self.entry is None:
             return np.array([], dtype=np.int64), np.array([], dtype=np.float32)
-        q = normalize(query)
+        q = normalize(_one(query))
         ef = max(ef or self.ef_search, k)
         entries = [self.entry]
         for layer in range(self.top_layer, 0, -1):
@@ -212,7 +243,8 @@ class HNSWIndex:
         if self.deleted:
             ef = min(self.n, int(ef / max(1 - len(self.deleted) / self.n, 0.05)) + 1)
         found = self._search_layer(q, entries, ef, 0)
-        live = [(d, i) for d, i in found if i not in self.deleted][:k]
+        with_copies = [(d, j) for d, i in found for j in (i, *self.copies.get(i, ()))]
+        live = [(d, i) for d, i in with_copies if i not in self.deleted][:k]
         return np.array([i for _, i in live], dtype=np.int64), np.array([1.0 - d for d, _ in live], dtype=np.float32)
 
     # ---- saving ----------------------------------------------------------------------------------------

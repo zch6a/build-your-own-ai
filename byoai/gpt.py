@@ -172,6 +172,8 @@ def batches(data: np.ndarray, block_size: int, batch_size: int, rng: np.random.G
     if len(data) <= block_size + 1:
         raise ValueError(f"need more than block_size + 1 = {block_size + 1} tokens of training data, got {len(data)}")
     while True:
+        # (the high end is exclusive, so a window never reaches the last token: one token in the corpus is
+        # never a target; kept, since every published number was measured with it)
         starts = rng.integers(0, len(data) - block_size - 1, size=batch_size)
         x = np.stack([data[s : s + block_size] for s in starts])
         y = np.stack([data[s + 1 : s + block_size + 1] for s in starts])

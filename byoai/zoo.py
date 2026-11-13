@@ -72,7 +72,8 @@ def story_model(steps: int = STEPS, seed: int = 0, verbose: bool = False) -> tup
     """The chapter-3 GPT trained on the stories (from the cache when it is there)."""
     tok = story_tokenizer()
     cfg = GPTConfig(vocab_size=tok.vocab_size, **CONFIG)
-    key = _key(cfg=asdict(cfg), steps=steps, seed=seed, n=N_STORIES, code=_code("corpus.py", "tokenizer.py", "autograd.py", "gpt.py"))
+    # numpy too: a different numpy (Python 3.10 resolves an older one) gives slightly different weights
+    key = _key(cfg=asdict(cfg), steps=steps, seed=seed, n=N_STORIES, numpy=np.__version__, code=_code("corpus.py", "tokenizer.py", "autograd.py", "gpt.py"))
     path = checkpoints() / f"story-gpt-{key}.npz"
     if path.exists():
         return GPT.load(path), tok

@@ -1,6 +1,6 @@
 [project]
 name = "byoai"
-version = "0.1.0"
+version = "0.2.0"
 description = "Build your own AI from scratch: tokenizer, autograd, GPT, inference, vector database, RAG, agent and MCP — each a small, tested, readable module that runs on a laptop CPU with no API key."
 readme = "README.md"
 license = "MIT"

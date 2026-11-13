@@ -183,6 +183,13 @@ exact facts is hard to beat.
    256 learned centroids, and store one byte per piece. How much recall do you lose for 16× less
    memory?
 
+**Exact copies.** A review fed the index 100 identical vectors and found 67 of them unreachable: copies
+are all at distance 0 from each other, so they fill each other's link lists, and when a list is pruned
+the oldest links win. Newer copies keep their own links out but lose every link in. The index now
+stores an exact copy as an alias of the first one, which is returned together with it. Near-copies
+(differing in the last bits) are still ordinary nodes, and a dataset full of them is hard for any
+HNSW. Deduplicate before indexing if your data has many.
+
 ## Where real systems differ
 
 Production vector databases add what this chapter leaves out: memory-mapped storage instead of an

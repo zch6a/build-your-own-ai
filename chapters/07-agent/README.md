@@ -123,7 +123,9 @@ The other guards in `Agent`, each with a test:
   models repeat themselves; this breaks the loop early and is cheap.
 * **Results are cut** to `max_result_chars`. Every tool result is re-read by the model on every later
   turn — a 50 KB web page in turn 2 is paid for in turns 3 to 8.
-* **A step limit.** A confused model must not spin on your bill.
+* **A step limit.** A confused model must not spin on your bill. Turns are not the only cost: one turn
+  can ask for any number of tool calls (a review's model asked for 500 in one), so the run also stops
+  after `max_calls` calls (32), answering the calls it did not run with an error.
 
 ## Tools are an attack surface
 

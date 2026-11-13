@@ -76,15 +76,15 @@ def test_every_stored_vector_finds_itself(built):
 
 def test_layers_thin_out(built):
     _, hnsw, _, _ = built
-    per_layer = [sum(len(l) > layer for l in hnsw.links) for layer in range(hnsw.top_layer + 1)]
+    per_layer = [sum(len(node) > layer for node in hnsw.links) for layer in range(hnsw.top_layer + 1)]
     assert per_layer[0] == 3000
     assert all(a > b for a, b in zip(per_layer, per_layer[1:])), per_layer
 
 
 def test_links_are_capped(built):
     _, hnsw, _, _ = built
-    assert all(len(l[0]) <= hnsw.M0 for l in hnsw.links)
-    assert all(len(nb) <= hnsw.M for l in hnsw.links for nb in l[1:])
+    assert all(len(node[0]) <= hnsw.M0 for node in hnsw.links)
+    assert all(len(nb) <= hnsw.M for node in hnsw.links for nb in node[1:])
 
 
 def test_deleted_vectors_are_never_returned():

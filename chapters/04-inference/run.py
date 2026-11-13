@@ -10,7 +10,6 @@ from __future__ import annotations
 import sys
 import time
 
-import numpy as np
 
 from byoai.corpus import stories
 from byoai.generate import Engine
@@ -68,7 +67,8 @@ for name, setting in [
     print(f"  {name:<28} {fluent:>6.0%} {distinct:>8.0%}   {shown}{'…' if len(first) > 66 else ''}")
 
 print("\nstreaming, token by token (temperature 0.8, top-p 0.9):\n  ", end="")
+show = tok.stream_decoder()  # holds back half a character until the token that completes it
 for token in engine.stream(tok.encode("At night, Lena"), 60, temperature=0.8, top_p=0.9, stop={eot}, seed=7):
     if token != eot:
-        print(tok.decode([token]), end="", flush=True)
+        print(show(token), end="", flush=True)
 print()

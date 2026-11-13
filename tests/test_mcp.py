@@ -58,7 +58,7 @@ def test_tools_call_results_and_tool_errors():
     (req("tools/call", {"name": "whisper", "arguments": {}}), INVALID_PARAMS),
     (req("resources/list"), METHOD_NOT_FOUND),
     ({"id": 1, "method": "ping"}, INVALID_REQUEST),
-    ([1, 2], INVALID_REQUEST),
+    ("ping", INVALID_REQUEST),  # (a list is a batch: one error per element, see test_review_fixes)
 ])
 def test_protocol_errors(message, code):
     assert SERVER.handle(message)["error"]["code"] == code

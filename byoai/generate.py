@@ -11,8 +11,9 @@ two ideas that every inference engine is built on:
 
     from byoai.generate import Engine
     engine = Engine(model)
+    show = tok.stream_decoder()  # a character split across tokens is printed once it is complete
     for token in engine.stream(prompt_ids, max_new_tokens=50, temperature=0.8, top_p=0.9):
-        print(tok.decode([token]), end="")
+        print(show(token), end="")
 """
 
 from __future__ import annotations

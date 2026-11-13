@@ -96,10 +96,11 @@ class Tensor:
 
         Leaf gradients *accumulate* across passes (call `zero_grad` between steps). A graph can be used
         once: afterwards its intermediate tensors still hold their gradients, and running backward
-        through them again would count those twice (`(x*x).sum()` twice gave dx = 16, not 8). So a
-        second call raises, as in PyTorch — run the forward pass again instead."""
-        if self._used:
-            raise RuntimeError("backward() already ran through this graph; run the forward pass again (leaf gradients accumulate)")
+        through them again would count those twice (`(x*x).sum()` twice gave dx = 16, not 8). That
+        holds for any part of a graph, not only its root: with `h = x*x`, `h.sum().backward()` then
+        `(h*3).sum().backward()` would send h's old gradient down again. So a backward pass through
+        any used tensor raises, as in PyTorch — run the forward pass again (or add the two losses
+        and call backward once)."""
         if grad is None:
             if self.data.size != 1:
                 raise ValueError("backward() without a gradient needs a scalar; pass grad= for anything else")
@@ -118,6 +119,8 @@ class Tensor:
             seen.add(id(node))
             stack.append((node, True))
             stack.extend((p, False) for p in node._parents if id(p) not in seen)
+        if any(node._used for node in order):
+            raise RuntimeError("backward() already ran through part of this graph; run the forward pass again (leaf gradients accumulate)")
         self.grad = grad if self.grad is None else self.grad + grad
         for node in reversed(order):
             if node.grad is not None and node._parents:
@@ -189,6 +192,9 @@ class Tensor:
         return _t(other, self) / self
 
     # ---- matrix product ------------------------------------------------------------------------------
+    def __rmatmul__(self, other) -> Tensor:
+        return Tensor(other) @ self
+
     def __matmul__(self, other) -> Tensor:
         """`A @ B`, with numpy's batching: (..., n, k) @ (..., k, m) -> (..., n, m)."""
         o = _t(other, self)
@@ -212,8 +218,15 @@ class Tensor:
                 self._accumulate(np.multiply.outer(g, b))
                 o._accumulate(np.tensordot(a, g, axes=(tuple(range(a.ndim - 1)), tuple(range(g.ndim)))))
                 return
+            if a.ndim == 1:
+                # a vector times a (stack of) matrices: as numpy does, treat it as a 1×k matrix and drop
+                # that axis again (`g @ Bᵀ` straight on the vector broadcast it against the stack)
+                g1 = g[..., None, :]
+                self._accumulate((g1 @ np.swapaxes(b, -1, -2))[..., 0, :])  # summed over the stack
+                o._accumulate(a[:, None] @ g1)
+                return
             self._accumulate(g @ np.swapaxes(b, -1, -2))
-            o._accumulate(np.swapaxes(a, -1, -2) @ g if a.ndim > 1 else np.multiply.outer(a, g))
+            o._accumulate(np.swapaxes(a, -1, -2) @ g)
 
         return Tensor._make(a @ b, (self, o), "@", backward)
 

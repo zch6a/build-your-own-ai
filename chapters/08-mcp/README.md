@@ -99,7 +99,10 @@ The client has its own failure modes, each tested:
 The server, for its part, must survive anything a client sends: `params` that are not an object, a
 tool name that is not a string, and — if the server itself has a bug — an exception in `handle`, which
 becomes an internal error (−32603) for that one request instead of ending the session. (The first
-version crashed on `{"params": [1, 2]}`; three tests now send such messages.)
+version crashed on `{"params": [1, 2]}`; three tests now send such messages.) A review found two
+more: one byte that is not UTF-8 ended the server (stdin now decodes with replacement, so that line is
+a parse error), and a batch — a JSON array of requests, which revision 2025-03-26 requires — got one
+error instead of one answer per request. Request ids must be strings or integers; `null` is refused.
 
 ## What the demo shows
 
@@ -125,8 +128,10 @@ claude mcp add towns -- uv run --directory /path/to/build-your-own-ai python -m 
 ```
 
 Add `--notes /some/folder` at the end to also offer `read_file`, sandboxed to that folder (chapter 7).
-The tests check the message shapes against the protocol revision 2025-06-18 and run the server in a real
-subprocess; it has not been tested against every client.
+The client asks for revision 2025-06-18; the server accepts every revision with the same handshake
+(2024-11-05 to 2025-11-25). It serves tools before `initialize` (a client should not ask, and the
+server need not refuse). The tests check the message shapes and run the server in a real subprocess;
+it has not been tested against every client.
 
 ## Versions
 

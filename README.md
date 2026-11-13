@@ -118,7 +118,12 @@ cache is keyed by the source code, so editing `gpt.py` for an exercise retrains 
 and chapter 4's engine shows exactly what a framework does for you. The ideas transfer one to one.
 
 **My numbers differ slightly.** Timings depend on the machine. Everything else is deterministic for a
-given seed and code — the same run gives the same losses, step for step.
+given seed, code and numpy — the same run gives the same losses, step for step. A different numpy
+changes the last digits of the arithmetic, and the trained model with it: on Python 3.10 (where the
+lock file resolves an older numpy) the held-out loss is the same 0.62, but chapter 4's sampling table
+moves by a few points (greedy fluent 83% instead of 67%). The walkthroughs were measured with numpy
+2.5 on Python 3.14; the cached model is keyed by the numpy version, so it is retrained when that
+changes.
 
 **How do I start over?** Delete `checkpoints/` (or point `BYOAI_CHECKPOINTS` somewhere else).
 
@@ -139,7 +144,7 @@ are pinned by `tests/test_published_numbers.py`.
   nothing to download or license.
 - **Tested.** The tests are part of the explanation: they state what each piece must guarantee
   (lossless round trips, special tokens that cannot be injected, deterministic training, sandboxes
-  that do not leak). And they are tested themselves: 29 deliberate bugs, one at a time — a missing
+  that do not leak). And they are tested themselves: 33 deliberate bugs, one at a time — a missing
   attention scale, a dropped causal mask, a disabled sandbox check — and each one makes a test fail.
 - **Measured, then described.** Every number in the walkthroughs was produced by running the code; when
   a result differed from the expectation (when the phase change happens, LSA's "better" recall), the
